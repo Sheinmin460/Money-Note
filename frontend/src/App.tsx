@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "./lib/api";
 import type { Transaction, TransactionCreate } from "./lib/types";
 import { formatCurrency } from "./lib/format";
+import { Link } from "react-router-dom";
 import { Button } from "./components/Button";
 import { Modal } from "./components/Modal";
 import { SummaryCard } from "./components/SummaryCard";
@@ -101,7 +102,12 @@ export default function App() {
             <div className="text-lg font-semibold text-slate-900">Income Expense Tracker</div>
             <div className="text-sm text-slate-500">Track cash flow with clarity.</div>
           </div>
-          <Button onClick={openCreate}>Add Transaction</Button>
+          <div className="flex items-center gap-4">
+            <Link to="/admin">
+              <Button variant="outline">Dashboard</Button>
+            </Link>
+            <Button onClick={openCreate}>Add Transaction</Button>
+          </div>
         </div>
       </header>
 

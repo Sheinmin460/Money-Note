@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/transactions": {
-        target: "http://localhost:5174",
+        target: "http://localhost:5176",
         changeOrigin: true
       },
       "/health": {

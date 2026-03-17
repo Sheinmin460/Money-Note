@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, PropsWithChildren } from "react";
 
-type Variant = "primary" | "ghost" | "danger";
+type Variant = "primary" | "ghost" | "danger" | "outline";
 
 export function Button(
   props: PropsWithChildren<
@@ -17,7 +17,8 @@ export function Button(
   const styles: Record<Variant, string> = {
     primary: "bg-slate-900 text-white hover:bg-slate-800",
     ghost: "bg-white text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50",
-    danger: "bg-rose-600 text-white hover:bg-rose-500"
+    danger: "bg-rose-600 text-white hover:bg-rose-500",
+    outline: "bg-white text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50"
   };
 
   return <button className={`${base} ${styles[variant]} ${className}`} {...rest} />;

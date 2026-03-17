@@ -1,7 +1,7 @@
 import type { Transaction, TransactionCreate, TransactionUpdate } from "./types";
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL
-  ? String((import.meta as any).env.VITE_API_URL).replace(/\/+$/, "")
+const API_BASE = (import.meta as unknown as { env: Record<string, string> }).env?.VITE_API_URL
+  ? String((import.meta as unknown as { env: Record<string, string> }).env.VITE_API_URL).replace(/\/+$/, "")
   : "";
 
 async function request<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
@@ -24,7 +24,7 @@ async function request<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
     }
     const message =
       typeof payload === "object" && payload && "error" in payload
-        ? String((payload as any).error)
+        ? String((payload as Record<string, unknown>).error)
         : `Request failed (${res.status})`;
     throw new Error(message);
   }
@@ -52,6 +52,15 @@ export const api = {
   },
   deleteTransaction(id: number): Promise<void> {
     return request<void>(`/transactions/${id}`, { method: "DELETE" });
+  },
+  getBalances(): Promise<{ payment_method: string; balance: number }[]> {
+    return request<{ payment_method: string; balance: number }[]>("/transactions/balances");
+  },
+  getCategoryTotals(from?: string, to?: string): Promise<{ income: { category: string; total: number }[]; expense: { category: string; total: number }[] }> {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    return request<{ income: { category: string; total: number }[]; expense: { category: string; total: number }[] }>(`/transactions/category-totals?${params.toString()}`);
   }
 };
 

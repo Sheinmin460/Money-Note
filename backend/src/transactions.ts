@@ -132,3 +132,72 @@ transactionsRouter.delete("/:id", (req, res) => {
   res.status(204).send();
 });
 
+transactionsRouter.get("/balances", (_req, res) => {
+  const defaultMethods = ["Cash", "Bank", "Wallet", "Card"];
+
+  const rows = db
+    .prepare(
+      `SELECT
+        payment_method,
+        SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
+        SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
+      FROM transactions
+      GROUP BY payment_method`
+    )
+    .all() as { payment_method: string | null; income: number; expense: number }[];
+
+  const methodBalances = new Map<string, number>(
+    defaultMethods.map((m) => [m, 0])
+  );
+
+  for (const row of rows) {
+    if (row.payment_method && methodBalances.has(row.payment_method)) {
+      methodBalances.set(row.payment_method, row.income - row.expense);
+    }
+  }
+
+  const balances = Array.from(methodBalances.entries()).map(([method, balance]) => ({
+    payment_method: method,
+    balance: balance,
+  }));
+
+  res.json(balances);
+});
+
+transactionsRouter.get("/category-totals", (req, res) => {
+  const { from, to } = req.query;
+
+  let whereClause = '';
+  const params: any[] = [];
+
+  if (from && typeof from === 'string') {
+    whereClause += ` AND date >= ?`;
+    params.push(from);
+  }
+
+  if (to && typeof to === 'string') {
+    whereClause += ` AND date <= ?`;
+    params.push(to);
+  }
+
+  const income = db
+    .prepare(
+      `SELECT category, SUM(amount) as total
+      FROM transactions
+      WHERE type = 'income'${whereClause}
+      GROUP BY category`
+    )
+    .all(...params) as { category: string; total: number }[];
+
+  const expense = db
+    .prepare(
+      `SELECT category, SUM(amount) as total
+      FROM transactions
+      WHERE type = 'expense'${whereClause}
+      GROUP BY category`
+    )
+    .all(...params) as { category: string; total: number }[];
+
+  res.json({ income, expense });
+});
+
