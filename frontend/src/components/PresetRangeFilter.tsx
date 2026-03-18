@@ -5,23 +5,23 @@ interface PresetRangeFilterProps {
   onSelect: (days: number | 'all') => void;
 }
 
-const PRESETS = [
-  { label: 'Last 7 days', value: 7 },
-  { label: 'Last 30 days', value: 30 },
-  { label: 'Last 90 days', value: 90 },
-  { label: 'Last 6 months', value: 180 },
-  { label: 'Last year', value: 365 },
-  { label: 'All time', value: 'all' },
+const PRESETS: { label: string; value: number | 'all' }[] = [
+  { label: '7D', value: 7 },
+  { label: '30D', value: 30 },
+  { label: '90D', value: 90 },
+  { label: '6M', value: 180 },
+  { label: '1Y', value: 365 },
+  { label: 'AT', value: 'all' },
 ];
 
 const PresetRangeFilter: React.FC<PresetRangeFilterProps> = ({ onSelect }) => {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap gap-2">
       {PRESETS.map((preset) => (
         <button
           key={preset.label}
           onClick={() => onSelect(preset.value)}
-          className="rounded-lg bg-white px-3 py-1 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50"
+          className="flex-1 min-w-[50px] rounded-xl bg-slate-50 px-3 py-2 text-xs font-black text-slate-600 ring-1 ring-slate-100 hover:bg-emerald-50 hover:text-emerald-700 hover:ring-emerald-200 transition-all shadow-sm"
         >
           {preset.label}
         </button>

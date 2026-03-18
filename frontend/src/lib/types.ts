@@ -10,6 +10,7 @@ export type Transaction = {
   payment_method: string | null;
   note: string | null;
   date: string; // YYYY-MM-DD
+  is_initial?: boolean;
   created_at: string;
 };
 
@@ -20,7 +21,7 @@ export type TransactionCreate = {
   payment_method?: PaymentMethod | null;
   note?: string | null;
   date: string;
+  is_initial?: boolean;
 };
 
 export type TransactionUpdate = Partial<TransactionCreate>;
-

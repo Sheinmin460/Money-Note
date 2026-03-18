@@ -56,10 +56,11 @@ export const api = {
   getBalances(): Promise<{ payment_method: string; balance: number }[]> {
     return request<{ payment_method: string; balance: number }[]>("/transactions/balances");
   },
-  getCategoryTotals(from?: string, to?: string): Promise<{ income: { category: string; total: number }[]; expense: { category: string; total: number }[] }> {
+  getCategoryTotals(from?: string, to?: string, categories?: string[]): Promise<{ income: { category: string; total: number }[]; expense: { category: string; total: number }[] }> {
     const params = new URLSearchParams();
     if (from) params.set("from", from);
     if (to) params.set("to", to);
+    if (categories && categories.length > 0) params.set("categories", categories.join(","));
     return request<{ income: { category: string; total: number }[]; expense: { category: string; total: number }[] }>(`/transactions/category-totals?${params.toString()}`);
   }
 };

@@ -10,19 +10,22 @@ const transactionCreateSchema = z.object({
   category: z.string().trim().max(80).optional().nullable(),
   payment_method: z.enum(["Cash", "Bank", "Wallet", "Card"]).optional().nullable(),
   note: z.string().trim().max(500).optional().nullable(),
-  date: z.string().trim().min(4)
+  date: z.string().trim().min(4),
+  is_initial: z.boolean().optional()
 });
 
 const transactionUpdateSchema = transactionCreateSchema.partial().extend({
   type: z.enum(["income", "expense"]).optional(),
-  amount: z.number().finite().positive().optional()
+  amount: z.number().finite().positive().optional(),
+  is_initial: z.boolean().optional()
 });
 
 transactionsRouter.get("/", (_req, res) => {
   const rows = db
     .prepare(
-      `SELECT id, type, amount, category, payment_method, note, date, created_at
+      `SELECT id, type, amount, category, payment_method, note, date, is_initial, created_at
        FROM transactions
+       WHERE is_initial = 0
        ORDER BY date DESC, id DESC`
     )
     .all() as TransactionRow[];
@@ -35,10 +38,10 @@ transactionsRouter.post("/", (req, res) => {
     return res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
   }
 
-  const { type, amount, category, payment_method, note, date } = parsed.data;
+  const { type, amount, category, payment_method, note, date, is_initial } = parsed.data;
   const stmt = db.prepare(
-    `INSERT INTO transactions (type, amount, category, payment_method, note, date)
-     VALUES (@type, @amount, @category, @payment_method, @note, @date)`
+    `INSERT INTO transactions (type, amount, category, payment_method, note, date, is_initial)
+     VALUES (@type, @amount, @category, @payment_method, @note, @date, @is_initial)`
   );
   const info = stmt.run({
     type,
@@ -46,12 +49,13 @@ transactionsRouter.post("/", (req, res) => {
     category: category ?? null,
     payment_method: payment_method ?? null,
     note: note ?? null,
-    date
+    date,
+    is_initial: is_initial ? 1 : 0
   });
 
   const created = db
     .prepare(
-      `SELECT id, type, amount, category, payment_method, note, date, created_at
+      `SELECT id, type, amount, category, payment_method, note, date, is_initial, created_at
        FROM transactions
        WHERE id = ?`
     )
@@ -104,6 +108,10 @@ transactionsRouter.put("/:id", (req, res) => {
     fields.push("date = @date");
     params.date = patch.date;
   }
+  if (patch.is_initial !== undefined) {
+    fields.push("is_initial = @is_initial");
+    params.is_initial = patch.is_initial ? 1 : 0;
+  }
 
   if (fields.length > 0) {
     const update = db.prepare(
@@ -114,7 +122,7 @@ transactionsRouter.put("/:id", (req, res) => {
 
   const updated = db
     .prepare(
-      `SELECT id, type, amount, category, payment_method, note, date, created_at
+      `SELECT id, type, amount, category, payment_method, note, date, is_initial, created_at
        FROM transactions
        WHERE id = ?`
     )
@@ -184,7 +192,7 @@ transactionsRouter.get("/category-totals", (req, res) => {
     .prepare(
       `SELECT category, SUM(amount) as total
       FROM transactions
-      WHERE type = 'income'${whereClause}
+      WHERE type = 'income' AND is_initial = 0${whereClause}
       GROUP BY category`
     )
     .all(...params) as { category: string; total: number }[];
@@ -193,11 +201,10 @@ transactionsRouter.get("/category-totals", (req, res) => {
     .prepare(
       `SELECT category, SUM(amount) as total
       FROM transactions
-      WHERE type = 'expense'${whereClause}
+      WHERE type = 'expense' AND is_initial = 0${whereClause}
       GROUP BY category`
     )
     .all(...params) as { category: string; total: number }[];
 
   res.json({ income, expense });
 });
-

@@ -20,9 +20,17 @@ CREATE TABLE IF NOT EXISTS transactions (
   payment_method TEXT,
   note TEXT,
   date TEXT NOT NULL,
+  is_initial INTEGER DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 `);
+
+// Migration: Add is_initial column if it doesn't exist
+try {
+  db.prepare("SELECT is_initial FROM transactions LIMIT 1").get();
+} catch (e) {
+  db.exec("ALTER TABLE transactions ADD COLUMN is_initial INTEGER DEFAULT 0");
+}
 
 export type TransactionRow = {
   id: number;
@@ -32,6 +40,7 @@ export type TransactionRow = {
   payment_method: string | null;
   note: string | null;
   date: string;
+  is_initial: number;
   created_at: string;
 };
 
