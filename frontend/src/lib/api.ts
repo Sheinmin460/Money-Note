@@ -62,6 +62,21 @@ export const api = {
     if (to) params.set("to", to);
     if (categories && categories.length > 0) params.set("categories", categories.join(","));
     return request<{ income: { category: string; total: number }[]; expense: { category: string; total: number }[] }>(`/transactions/category-totals?${params.toString()}`);
+  },
+  listProjects(): Promise<import("./types").Project[]> {
+    return request<import("./types").Project[]>("/projects");
+  },
+  createProject(name: string): Promise<import("./types").Project> {
+    return request<import("./types").Project>("/projects", {
+      method: "POST",
+      body: JSON.stringify({ name })
+    });
+  },
+  deleteProject(id: number): Promise<void> {
+    return request<void>(`/projects/${id}`, { method: "DELETE" });
+  },
+  getProjectDetail(id: number): Promise<import("./types").ProjectDetail> {
+    return request<import("./types").ProjectDetail>(`/projects/${id}`);
   }
 };
 

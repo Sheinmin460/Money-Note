@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
-import type { PaymentMethod, Transaction, TransactionCreate, TransactionType } from "../lib/types";
+import { useEffect, useMemo, useState } from "react";
+import type { PaymentMethod, Project, Transaction, TransactionCreate, TransactionType } from "../lib/types";
 import { todayISO } from "../lib/format";
 import { Button } from "./Button";
+import { api } from "../lib/api";
 
 const paymentMethods: PaymentMethod[] = ["Cash", "Bank", "Wallet", "Card"];
 
@@ -12,6 +13,7 @@ type FormValues = {
   payment_method: PaymentMethod;
   note: string;
   date: string;
+  project_id: string; // "null" for No Project
 };
 
 function toFormValues(tx?: Transaction): FormValues {
@@ -21,7 +23,8 @@ function toFormValues(tx?: Transaction): FormValues {
     category: tx?.category ?? "",
     payment_method: (tx?.payment_method as PaymentMethod) ?? "Cash",
     note: tx?.note ?? "",
-    date: tx?.date ?? todayISO()
+    date: tx?.date ?? todayISO(),
+    project_id: tx?.project_id ? String(tx.project_id) : "null"
   };
 }
 
@@ -38,7 +41,12 @@ export function TransactionForm({
 }) {
   const isEdit = !!initial;
   const [values, setValues] = useState<FormValues>(() => toFormValues(initial));
+  const [projects, setProjects] = useState<Project[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.listProjects().then(setProjects).catch(console.error);
+  }, []);
 
   const canSubmit = useMemo(() => {
     const amount = Number(values.amount);
@@ -60,7 +68,8 @@ export function TransactionForm({
       category: values.category.trim() ? values.category.trim() : null,
       payment_method: values.payment_method,
       note: values.note.trim() ? values.note.trim() : null,
-      date: values.date
+      date: values.date,
+      project_id: values.project_id === "null" ? null : Number(values.project_id)
     };
 
     try {
@@ -128,6 +137,22 @@ export function TransactionForm({
             {paymentMethods.map((m) => (
               <option key={m} value={m}>
                 {m}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="space-y-1 sm:col-span-2">
+          <div className="text-sm font-medium text-slate-700">Project</div>
+          <select
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400"
+            value={values.project_id}
+            onChange={(e) => setValues((v) => ({ ...v, project_id: e.target.value }))}
+          >
+            <option value="null">No Project</option>
+            {projects.map((p) => (
+              <option key={p.id} value={String(p.id)}>
+                {p.name}
               </option>
             ))}
           </select>

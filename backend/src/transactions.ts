@@ -11,19 +11,21 @@ const transactionCreateSchema = z.object({
   payment_method: z.enum(["Cash", "Bank", "Wallet", "Card"]).optional().nullable(),
   note: z.string().trim().max(500).optional().nullable(),
   date: z.string().trim().min(4),
-  is_initial: z.boolean().optional()
+  is_initial: z.boolean().optional(),
+  project_id: z.number().optional().nullable()
 });
 
 const transactionUpdateSchema = transactionCreateSchema.partial().extend({
   type: z.enum(["income", "expense"]).optional(),
   amount: z.number().finite().positive().optional(),
-  is_initial: z.boolean().optional()
+  is_initial: z.boolean().optional(),
+  project_id: z.number().optional().nullable()
 });
 
 transactionsRouter.get("/", (_req, res) => {
   const rows = db
     .prepare(
-      `SELECT id, type, amount, category, payment_method, note, date, is_initial, created_at
+      `SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, created_at
        FROM transactions
        WHERE is_initial = 0
        ORDER BY date DESC, id DESC`
@@ -38,10 +40,10 @@ transactionsRouter.post("/", (req, res) => {
     return res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
   }
 
-  const { type, amount, category, payment_method, note, date, is_initial } = parsed.data;
+  const { type, amount, category, payment_method, note, date, is_initial, project_id } = parsed.data;
   const stmt = db.prepare(
-    `INSERT INTO transactions (type, amount, category, payment_method, note, date, is_initial)
-     VALUES (@type, @amount, @category, @payment_method, @note, @date, @is_initial)`
+    `INSERT INTO transactions (type, amount, category, payment_method, note, date, is_initial, project_id)
+     VALUES (@type, @amount, @category, @payment_method, @note, @date, @is_initial, @project_id)`
   );
   const info = stmt.run({
     type,
@@ -50,12 +52,13 @@ transactionsRouter.post("/", (req, res) => {
     payment_method: payment_method ?? null,
     note: note ?? null,
     date,
-    is_initial: is_initial ? 1 : 0
+    is_initial: is_initial ? 1 : 0,
+    project_id: project_id ?? null
   });
 
   const created = db
     .prepare(
-      `SELECT id, type, amount, category, payment_method, note, date, is_initial, created_at
+      `SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, created_at
        FROM transactions
        WHERE id = ?`
     )
@@ -112,6 +115,10 @@ transactionsRouter.put("/:id", (req, res) => {
     fields.push("is_initial = @is_initial");
     params.is_initial = patch.is_initial ? 1 : 0;
   }
+  if (patch.project_id !== undefined) {
+    fields.push("project_id = @project_id");
+    params.project_id = patch.project_id;
+  }
 
   if (fields.length > 0) {
     const update = db.prepare(
@@ -122,7 +129,7 @@ transactionsRouter.put("/:id", (req, res) => {
 
   const updated = db
     .prepare(
-      `SELECT id, type, amount, category, payment_method, note, date, is_initial, created_at
+      `SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, created_at
        FROM transactions
        WHERE id = ?`
     )

@@ -12,6 +12,12 @@ export const db = new Database(dbPath);
 db.pragma("journal_mode = WAL");
 
 db.exec(`
+CREATE TABLE IF NOT EXISTS projects (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS transactions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   type TEXT CHECK(type IN ('income','expense')) NOT NULL,
@@ -21,6 +27,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   note TEXT,
   date TEXT NOT NULL,
   is_initial INTEGER DEFAULT 0,
+  project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 `);
@@ -32,6 +39,13 @@ try {
   db.exec("ALTER TABLE transactions ADD COLUMN is_initial INTEGER DEFAULT 0");
 }
 
+// Migration: Add project_id column if it doesn't exist
+try {
+  db.prepare("SELECT project_id FROM transactions LIMIT 1").get();
+} catch (e) {
+  db.exec("ALTER TABLE transactions ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL");
+}
+
 export type TransactionRow = {
   id: number;
   type: "income" | "expense";
@@ -41,6 +55,13 @@ export type TransactionRow = {
   note: string | null;
   date: string;
   is_initial: number;
+  project_id: number | null;
+  created_at: string;
+};
+
+export type ProjectRow = {
+  id: number;
+  name: string;
   created_at: string;
 };
 

@@ -10,8 +10,12 @@ export default defineConfig({
         target: "http://localhost:5176",
         changeOrigin: true
       },
+      "/projects": {
+        target: "http://localhost:5176",
+        changeOrigin: true
+      },
       "/health": {
-        target: "http://localhost:5174",
+        target: "http://localhost:5176",
         changeOrigin: true
       }
     }

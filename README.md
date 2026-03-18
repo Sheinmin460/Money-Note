@@ -7,7 +7,8 @@
 ## ✨ Features
 
 - **Summary Dashboard**: Instantly see your total income, expenses, and current balance.
-- **Transaction Management**: Easily add, edit, and delete transactions.
+- **Projects Management**: Group transactions into projects to track specific budgets or ventures. See dedicated summaries and transaction lists for each project.
+- **Transaction Management**: Easily add, edit, and delete transactions with optional project assignment.
 - **Categorization**: Organize your cash flow by categories and payment methods (Cash, Bank, Wallet, Card).
 - **Responsive Design**: A premium, "loveable" UI built with Tailwind CSS, optimized for both desktop and mobile.
 - **Security & Integrity**: Built-in data validation with Zod and clean SQLite data management.
@@ -75,6 +76,10 @@ npm run dev
 | `POST` | `/transactions` | Create a new transaction |
 | `PUT` | `/transactions/:id` | Update an existing transaction |
 | `DELETE` | `/transactions/:id` | Remove a transaction |
+| `GET` | `/projects` | List all projects |
+| `POST` | `/projects` | Create a new project |
+| `GET` | `/projects/:id` | Get project details and filtered transactions |
+| `DELETE` | `/projects/:id` | Delete a project |
 
 ---
 

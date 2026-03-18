@@ -18,7 +18,6 @@ export function SummaryCard({
   return (
     <Card className="flex items-center justify-between gap-4">
       <div>
-        <div className="text-sm font-medium text-slate-600">{label}</div>
         <div className={`mt-1 text-2xl font-semibold ${tones[tone].value}`}>{value}</div>
       </div>
       <div className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${tones[tone].badge}`}>
