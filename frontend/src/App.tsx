@@ -32,8 +32,9 @@ export default function App() {
 
     // Overall balance is the sum of all wallet balances
     const overallBalance = balances.reduce((sum, b) => sum + b.balance, 0);
+    const profit = income - expense;
 
-    return { income, expense, balance: overallBalance };
+    return { income, expense, profit, balance: overallBalance };
   }, [items, balances]);
 
   const refresh = async () => {
@@ -56,6 +57,13 @@ export default function App() {
   useEffect(() => {
     void refresh();
   }, []);
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const openCreate = () => {
     setEditing(undefined);
@@ -83,7 +91,7 @@ export default function App() {
       setModalOpen(false);
       void refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed.");
+      // Submission errors are handled by TransactionForm, so we don't setError(err.message) here
       throw err;
     } finally {
       setBusyId(null);
@@ -119,9 +127,10 @@ export default function App() {
           </div>
         ) : null}
 
-        <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          <SummaryCard label="Total Income" value={formatCurrency(totals.income)} tone="green" />
-          <SummaryCard label="Total Expense" value={formatCurrency(totals.expense)} tone="red" />
+        <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
+          <SummaryCard label="Income" value={formatCurrency(totals.income)} tone="green" />
+          <SummaryCard label="Expense" value={formatCurrency(totals.expense)} tone="red" />
+          <SummaryCard label="Profit" value={formatCurrency(totals.profit)} tone={totals.profit >= 0 ? "green" : "red"} />
           <SummaryCard label="Balance" value={formatCurrency(totals.balance)} tone="blue" />
         </section>
 

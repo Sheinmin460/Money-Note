@@ -64,10 +64,16 @@ export const api = {
     return request<TransferLog[]>("/transactions/transfers");
   },
 
-  createWallet(name: string): Promise<Wallet> {
+  createWallet(name: string, is_credit?: boolean, credit_limit?: number): Promise<Wallet> {
     return request<Wallet>("/wallets", {
       method: "POST",
-      body: JSON.stringify({ name })
+      body: JSON.stringify({ name, is_credit, credit_limit })
+    });
+  },
+  updateWallet(oldName: string, data: { name?: string; is_credit?: boolean; credit_limit?: number }): Promise<Wallet> {
+    return request<Wallet>(`/wallets/${oldName}`, {
+      method: "PUT",
+      body: JSON.stringify(data)
     });
   },
   deleteWallet(name: string): Promise<void> {

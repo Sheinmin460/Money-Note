@@ -57,10 +57,22 @@ export function TransactionForm({
     }).catch(console.error);
   }, []);
 
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
   const canSubmit = useMemo(() => {
     const amount = Number(values.amount);
-    return values.date.trim().length > 0 && Number.isFinite(amount) && amount > 0;
-  }, [values.amount, values.date]);
+    return (
+      values.date.trim().length > 0 &&
+      values.category.trim().length > 0 &&
+      Number.isFinite(amount) &&
+      amount > 0
+    );
+  }, [values.amount, values.date, values.category]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,6 +140,7 @@ export function TransactionForm({
           <input
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400"
             type="text"
+            required
             placeholder="e.g. Salary, Food, Rent"
             value={values.category}
             onChange={(e) => setValues((v) => ({ ...v, category: e.target.value }))}

@@ -7,7 +7,7 @@ export const transactionsRouter = Router();
 const transactionCreateSchema = z.object({
   type: z.enum(["income", "expense"]),
   amount: z.number().finite().positive(),
-  category: z.string().trim().max(80).optional().nullable(),
+  category: z.string().trim().min(1).max(80),
   payment_method: z.string().trim().max(50).optional().nullable(),
   note: z.string().trim().max(500).optional().nullable(),
   date: z.string().trim().min(4),
@@ -27,7 +27,7 @@ transactionsRouter.get("/", (_req, res) => {
     .prepare(
       `SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, transfer_id, created_at
        FROM transactions
-       WHERE is_initial = 0 AND category != 'Transfer'
+       WHERE is_initial = 0 AND COALESCE(category, '') != 'Transfer'
        ORDER BY date DESC, id DESC`
     )
     .all() as TransactionRow[];
@@ -41,6 +41,33 @@ transactionsRouter.post("/", (req, res) => {
   }
 
   const { type, amount, category, payment_method, note, date, is_initial, project_id } = parsed.data;
+
+  // Balance check for wallets
+  if (type === "expense" && payment_method) {
+    const wallet = db.prepare("SELECT is_credit, credit_limit FROM wallets WHERE name = ?").get(payment_method) as { is_credit: number, credit_limit: number } | undefined;
+    if (wallet) {
+      const balanceRow = db.prepare(`
+        SELECT 
+          SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) - 
+          SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as balance
+        FROM transactions 
+        WHERE payment_method = ?
+      `).get(payment_method) as { balance: number | null };
+      const currentBalance = balanceRow.balance ?? 0;
+
+      if (wallet.is_credit === 0) {
+        if (currentBalance < amount) {
+          return res.status(400).json({ error: `Insufficient funds in ${payment_method}. Current balance: ${currentBalance}` });
+        }
+      } else {
+        // Credit wallet limit check
+        if (currentBalance - amount < -wallet.credit_limit) {
+          return res.status(400).json({ error: `Transaction exceeds credit limit for ${payment_method}. Current balance: ${currentBalance}, Credit limit: ${wallet.credit_limit}` });
+        }
+      }
+    }
+  }
+
   const stmt = db.prepare(
     `INSERT INTO transactions (type, amount, category, payment_method, note, date, is_initial, project_id)
      VALUES (@type, @amount, @category, @payment_method, @note, @date, @is_initial, @project_id)`
@@ -76,12 +103,40 @@ transactionsRouter.put("/:id", (req, res) => {
     return res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
   }
 
-  const existing = db.prepare(`SELECT id FROM transactions WHERE id = ?`).get(id) as
-    | { id: number }
-    | undefined;
-  if (!existing) return res.status(404).json({ error: "Not found" });
+  const existingTx = db.prepare(`SELECT * FROM transactions WHERE id = ?`).get(id) as TransactionRow | undefined;
+  if (!existingTx) return res.status(404).json({ error: "Not found" });
 
   const patch = parsed.data;
+
+  // Balance Check if amount, type, or payment_method changes
+  const newType = patch.type ?? existingTx.type;
+  const newAmount = patch.amount ?? existingTx.amount;
+  const newMethod = patch.payment_method ?? existingTx.payment_method;
+
+  if (newType === "expense" && newMethod) {
+    const wallet = db.prepare("SELECT is_credit, credit_limit FROM wallets WHERE name = ?").get(newMethod) as { is_credit: number, credit_limit: number } | undefined;
+    if (wallet) {
+      // Calculate balance EXCLUDING this transaction
+      const balanceRow = db.prepare(`
+        SELECT 
+          SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) - 
+          SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as balance
+        FROM transactions 
+        WHERE payment_method = ? AND id != ?
+      `).get(newMethod, id) as { balance: number | null };
+      const otherBalance = balanceRow.balance ?? 0;
+
+      if (wallet.is_credit === 0) {
+        if (otherBalance < newAmount) {
+          return res.status(400).json({ error: `Insufficient funds in ${newMethod}. Available balance: ${otherBalance}` });
+        }
+      } else {
+        if (otherBalance - newAmount < -wallet.credit_limit) {
+          return res.status(400).json({ error: `Transaction exceeds credit limit for ${newMethod}. Available: ${otherBalance + wallet.credit_limit}` });
+        }
+      }
+    }
+  }
 
   // Build dynamic UPDATE query and parameters
   const fields: string[] = [];
@@ -160,18 +215,23 @@ transactionsRouter.get("/balances", (_req, res) => {
     )
     .all() as { payment_method: string | null; income: number; expense: number }[];
 
-  const allWallets = db.prepare("SELECT name FROM wallets").all() as { name: string }[];
-  const walletBalances = new Map<string, number>(allWallets.map(w => [w.name, 0]));
+  const allWallets = db.prepare("SELECT name, is_credit, credit_limit FROM wallets").all() as { name: string, is_credit: number, credit_limit: number }[];
+  const walletMap = new Map<string, { balance: number, is_credit: number, credit_limit: number }>(
+    allWallets.map(w => [w.name, { balance: 0, is_credit: w.is_credit, credit_limit: w.credit_limit }])
+  );
 
   for (const row of rows) {
-    if (row.payment_method && walletBalances.has(row.payment_method)) {
-      walletBalances.set(row.payment_method, row.income - row.expense);
+    if (row.payment_method && walletMap.has(row.payment_method)) {
+      const wallet = walletMap.get(row.payment_method)!;
+      wallet.balance = row.income - row.expense;
     }
   }
 
-  const balances = Array.from(walletBalances.entries()).map(([method, balance]) => ({
+  const balances = Array.from(walletMap.entries()).map(([method, data]) => ({
     payment_method: method,
-    balance: balance,
+    balance: data.balance,
+    is_credit: data.is_credit,
+    credit_limit: data.credit_limit
   }));
 
   res.json(balances);
@@ -197,7 +257,7 @@ transactionsRouter.get("/category-totals", (req, res) => {
     .prepare(
       `SELECT category, SUM(amount) as total
       FROM transactions
-      WHERE type = 'income' AND is_initial = 0 AND category != 'Transfer'${whereClause}
+      WHERE type = 'income' AND is_initial = 0 AND COALESCE(category, '') != 'Transfer'${whereClause}
       GROUP BY category`
     )
     .all(...params) as { category: string; total: number }[];
@@ -206,7 +266,7 @@ transactionsRouter.get("/category-totals", (req, res) => {
     .prepare(
       `SELECT category, SUM(amount) as total
       FROM transactions
-      WHERE type = 'expense' AND is_initial = 0 AND category != 'Transfer'${whereClause}
+      WHERE type = 'expense' AND is_initial = 0 AND COALESCE(category, '') != 'Transfer'${whereClause}
       GROUP BY category`
     )
     .all(...params) as { category: string; total: number }[];

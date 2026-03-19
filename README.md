@@ -6,15 +6,13 @@
 
 ## ✨ Features
 
-- **Summary Dashboard**: Instantly see your total income, expenses, and current balance.
-- **Projects Management**: Group transactions into projects to track specific budgets or ventures. See dedicated summaries and transaction lists for each project.
-- **Transaction Management**: Easily add, edit, and delete transactions with optional project assignment.
-- **Categorization**: Organize your cash flow by categories and dynamic payment methods.
-- **Wallet Management**: Create and manage multiple wallets (Cash, Bank, Savings, etc.) with real-time balance tracking.
-- **Separate Transfer Logs**: Move funds between wallets without affecting your main income/expense charts. Dedicated logs for all internal movements.
-- **Responsive Design**: A premium, "loveable" UI built with Tailwind CSS, optimized for both desktop and mobile.
-- **Premium UX**: Custom modal system for confirmations and error handling, replacing native browser alerts for a professional feel.
-- **Security & Integrity**: Built-in data validation with Zod and clean SQLite data management with automatic migrations.
+- **Profit Dashboard**: Instantly see your total income, expenses, profit, and current balance in a modern, card-based interface.
+- **Projects Management**: Group transactions into projects to track specific budgets or ventures with dedicated summaries.
+- **Credit Wallets & Limits**: Create specialized "Credit" wallets that allow negative balances up to a custom-defined credit limit.
+- **Wallet Management**: Full CRUD support for wallets (Cash, Bank, Credit). Renaming a wallet automatically updates all its associated transactions.
+- **Categorization**: Mandatory categorization for clear reporting. Smart filters include "NULL" category handling to ensure no transaction is lost.
+- **Separate Transfer Logs**: Move funds between wallets without affecting your main income/expense charts.
+- **Security & Integrity**: Transactional database updates (using SQLite BEGIN/COMMIT) ensure data consistency even during complex operations like wallet renaming.
 
 ## 🛠️ Technology Stack
 
@@ -75,18 +73,16 @@ npm run dev
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/transactions` | List all transactions (newest first) |
-| `POST` | `/transactions` | Create a new transaction |
-| `PUT` | `/transactions/:id` | Update an existing transaction |
+| `GET` | `/transactions` | List all transactions including those with no category |
+| `POST` | `/transactions` | Create a transaction (with balance & credit limit checks) |
+| `PUT` | `/transactions/:id` | Update a transaction (re-validates balance/limits) |
 | `DELETE` | `/transactions/:id` | Remove a transaction |
-| `GET` | `/projects` | List all projects |
-| `POST` | `/projects` | Create a new project |
-| `GET` | `/projects/:id` | Get project details and filtered transactions |
-| `DELETE` | `/projects/:id` | Delete a project |
-| `GET` | `/wallets` | List all available wallets and their balances |
-| `POST` | `/wallets` | Create a new wallet |
-| `DELETE` | `/wallets/:name` | Delete a wallet (only if balance is zero) |
-| `POST` | `/wallets/transfer` | Transfer money between two wallets |
+| `GET` | `/transactions/balances` | List wallets with balances, credit status, and limits |
+| `GET` | `/wallets` | List all wallet definitions |
+| `POST` | `/wallets` | Create a new wallet (with optional credit limit) |
+| `PUT` | `/wallets/:name` | Update wallet name/status (migrates transactions) |
+| `DELETE` | `/wallets/:name` | Delete a wallet (balance must be zero) |
+| `POST` | `/wallets/transfer` | Atomic transfer between wallets with limit checks |
 | `GET` | `/transactions/transfers` | List all internal wallet transfer logs |
 
 ---

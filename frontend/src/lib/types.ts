@@ -44,12 +44,16 @@ export type ProjectDetail = Project & {
 export type Wallet = {
   id: number;
   name: string;
+  is_credit: number;
+  credit_limit: number;
   created_at: string;
 };
 
 export type WalletBalance = {
   payment_method: string;
   balance: number;
+  is_credit: number;
+  credit_limit: number;
 };
 
 export type TransferLog = {

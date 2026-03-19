@@ -1,9 +1,12 @@
-export function formatCurrency(amount: number): string {
+export function formatCurrency(amount: any): string {
+  const val = typeof amount === 'number' ? amount : parseFloat(amount);
+  const safeAmount = isNaN(val) ? 0 : val;
+
   return new Intl.NumberFormat(undefined, {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 2
-  }).format(amount);
+  }).format(safeAmount);
 }
 
 export function formatDate(isoDate: string): string {

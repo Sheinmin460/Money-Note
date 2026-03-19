@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS transactions (
 CREATE TABLE IF NOT EXISTS wallets (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT UNIQUE NOT NULL,
+  is_credit INTEGER DEFAULT 0,
+  credit_limit REAL DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 `);
@@ -58,6 +60,20 @@ try {
   db.prepare("SELECT transfer_id FROM transactions LIMIT 1").get();
 } catch (e) {
   db.exec("ALTER TABLE transactions ADD COLUMN transfer_id TEXT");
+}
+
+// Migration: Add is_credit column to wallets if it doesn't exist
+try {
+  db.prepare("SELECT is_credit FROM wallets LIMIT 1").get();
+} catch (e) {
+  db.exec("ALTER TABLE wallets ADD COLUMN is_credit INTEGER DEFAULT 0");
+}
+
+// Migration: Add credit_limit column to wallets if it doesn't exist
+try {
+  db.prepare("SELECT credit_limit FROM wallets LIMIT 1").get();
+} catch (e) {
+  db.exec("ALTER TABLE wallets ADD COLUMN credit_limit REAL DEFAULT 0");
 }
 
 // Migration: Populate wallets table if empty
@@ -99,4 +115,26 @@ export type ProjectRow = {
   name: string;
   created_at: string;
 };
+
+export function getWalletBalance(name: string): number {
+  const row = db.prepare(`
+    SELECT 
+      SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) - 
+      SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as balance
+    FROM transactions 
+    WHERE payment_method = ?
+  `).get(name) as { balance: number | null };
+  return row.balance ?? 0;
+}
+
+export function isCreditWallet(name: string): boolean {
+  const row = db.prepare("SELECT is_credit FROM wallets WHERE name = ?").get(name) as { is_credit: number } | undefined;
+  return row?.is_credit === 1;
+}
+
+export function getWalletCreditLimit(name: string): number {
+  const row = db.prepare("SELECT credit_limit FROM wallets WHERE name = ?").get(name) as { credit_limit: number } | undefined;
+  return row?.credit_limit || 0;
+}
+
 

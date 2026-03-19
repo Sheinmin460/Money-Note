@@ -15,6 +15,14 @@ export default function WalletsPage() {
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [newWalletName, setNewWalletName] = useState('');
+    const [isCreditWallet, setIsCreditWallet] = useState(false);
+    const [creditLimit, setCreditLimit] = useState('');
+
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [walletToEdit, setWalletToEdit] = useState<WalletBalance | null>(null);
+    const [editWalletName, setEditWalletName] = useState('');
+    const [editIsCredit, setEditIsCredit] = useState(false);
+    const [editCreditLimit, setEditCreditLimit] = useState('');
 
     const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
     const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
@@ -52,14 +60,34 @@ export default function WalletsPage() {
         void refresh();
     }, []);
 
+    useEffect(() => {
+        if (error) {
+            const timer = setTimeout(() => setError(null), 8000);
+            return () => clearTimeout(timer);
+        }
+    }, [error]);
+
+    useEffect(() => {
+        if (modalError) {
+            const timer = setTimeout(() => setModalError(null), 8000);
+            return () => clearTimeout(timer);
+        }
+    }, [modalError]);
+
     const handleAddWallet = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newWalletName.trim()) return;
         setSubmitting(true);
         setModalError(null);
         try {
-            await api.createWallet(newWalletName.trim());
+            await api.createWallet(
+                newWalletName.trim(),
+                isCreditWallet,
+                isCreditWallet ? parseFloat(creditLimit) || 0 : 0
+            );
             setNewWalletName('');
+            setIsCreditWallet(false);
+            setCreditLimit('');
             setIsAddModalOpen(false);
             void refresh();
         } catch (err) {
@@ -67,6 +95,36 @@ export default function WalletsPage() {
         } finally {
             setSubmitting(false);
         }
+    };
+
+    const handleUpdateWallet = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!walletToEdit || !editWalletName.trim()) return;
+        setSubmitting(true);
+        setModalError(null);
+        try {
+            await api.updateWallet(walletToEdit.payment_method, {
+                name: editWalletName.trim(),
+                is_credit: editIsCredit,
+                credit_limit: editIsCredit ? parseFloat(editCreditLimit) || 0 : 0
+            });
+            setIsEditModalOpen(false);
+            setWalletToEdit(null);
+            void refresh();
+        } catch (err) {
+            setModalError(err instanceof Error ? err.message : 'Failed to update wallet');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const openEditModal = (wallet: WalletBalance) => {
+        setWalletToEdit(wallet);
+        setEditWalletName(wallet.payment_method);
+        setEditIsCredit(wallet.is_credit === 1);
+        setEditCreditLimit(String(wallet.credit_limit || 0));
+        setModalError(null);
+        setIsEditModalOpen(true);
     };
 
     const handleDeleteWallet = async () => {
@@ -205,12 +263,21 @@ export default function WalletsPage() {
                                     </div>
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button
-                                            onClick={() => openAdjustmentModal(wallet.payment_method)}
-                                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
-                                            title="Adjust Balance"
+                                            onClick={() => openEditModal(wallet)}
+                                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
+                                            title="Edit Wallet"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                                 <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            onClick={() => openAdjustmentModal(wallet.payment_method)}
+                                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                                            title="Quick Adjustment"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
                                             </svg>
                                         </button>
                                         <button
@@ -224,11 +291,16 @@ export default function WalletsPage() {
                                         </button>
                                     </div>
                                 </div>
-                                <div className="mt-4 pt-4 border-t border-slate-50 flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                                     <div className="flex items-center gap-1">
-                                        <span className={`w-2 h-2 rounded-full ${wallet.balance > 0 ? 'bg-emerald-500' : 'bg-slate-300'}`}></span>
-                                        Active
+                                        <span className={`w-2 h-2 rounded-full ${wallet.balance > 0 ? 'bg-emerald-500' : (wallet.balance < 0 && wallet.is_credit ? 'bg-orange-400' : 'bg-slate-300')}`}></span>
+                                        {wallet.is_credit ? 'Credit Account' : 'Standard'}
                                     </div>
+                                    {wallet.is_credit === 1 && (
+                                        <div className="text-slate-500">
+                                            Limit: <span className="text-slate-900">{formatCurrency(wallet.credit_limit)}</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ))
@@ -247,21 +319,121 @@ export default function WalletsPage() {
                                 {modalError}
                             </div>
                         )}
-                        <div className="space-y-2">
-                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Wallet Name</label>
-                            <input
-                                autoFocus
-                                required
-                                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-slate-50 focus:border-slate-400 outline-none text-lg font-bold transition-all"
-                                placeholder="e.g. PayPal, Savings, Crypto"
-                                value={newWalletName}
-                                onChange={(e) => setNewWalletName(e.target.value)}
-                            />
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Wallet Name</label>
+                                <input
+                                    autoFocus
+                                    required
+                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-slate-50 focus:border-slate-400 outline-none text-lg font-bold transition-all"
+                                    placeholder="e.g. PayPal, Savings, Crypto"
+                                    value={newWalletName}
+                                    onChange={(e) => setNewWalletName(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="space-y-4 pt-2">
+                                <label className="flex items-center gap-3 p-4 rounded-xl border border-slate-100 bg-slate-50/50 cursor-pointer hover:bg-slate-50 transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                        checked={isCreditWallet}
+                                        onChange={(e) => setIsCreditWallet(e.target.checked)}
+                                    />
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-bold text-slate-700">Credit Wallet</span>
+                                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Allows negative balance</span>
+                                    </div>
+                                </label>
+
+                                {isCreditWallet && (
+                                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Credit Limit</label>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400">$</span>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-slate-50 focus:border-slate-400 outline-none font-bold transition-all"
+                                                placeholder="0.00"
+                                                value={creditLimit}
+                                                onChange={(e) => setCreditLimit(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <div className="flex justify-end gap-2 pt-4">
                             <Button type="button" variant="ghost" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
                             <Button type="submit" disabled={submitting || !newWalletName.trim()}>
                                 {submitting ? 'Creating...' : 'Create Wallet'}
+                            </Button>
+                        </div>
+                    </form>
+                </Modal>
+
+                <Modal
+                    open={isEditModalOpen}
+                    title="Edit Wallet"
+                    onClose={() => { setIsEditModalOpen(false); setModalError(null); }}
+                >
+                    <form onSubmit={handleUpdateWallet} className="space-y-4">
+                        {modalError && (
+                            <div className="p-3 bg-rose-50 text-rose-600 text-xs font-bold rounded-xl border border-rose-100 animate-shake">
+                                {modalError}
+                            </div>
+                        )}
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Wallet Name</label>
+                                <input
+                                    required
+                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-slate-50 focus:border-slate-400 outline-none text-lg font-bold transition-all"
+                                    placeholder="e.g. PayPal, Savings, Crypto"
+                                    value={editWalletName}
+                                    onChange={(e) => setEditWalletName(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="space-y-4 pt-2">
+                                <label className="flex items-center gap-3 p-4 rounded-xl border border-slate-100 bg-slate-50/50 cursor-pointer hover:bg-slate-50 transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                        checked={editIsCredit}
+                                        onChange={(e) => setEditIsCredit(e.target.checked)}
+                                    />
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-bold text-slate-700">Credit Wallet</span>
+                                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Allows negative balance</span>
+                                    </div>
+                                </label>
+
+                                {editIsCredit && (
+                                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Credit Limit</label>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400">$</span>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-slate-50 focus:border-slate-400 outline-none font-bold transition-all"
+                                                placeholder="0.00"
+                                                value={editCreditLimit}
+                                                onChange={(e) => setEditCreditLimit(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-4">
+                            <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={submitting || !editWalletName.trim()}>
+                                {submitting ? 'Updating...' : 'Save Changes'}
                             </Button>
                         </div>
                     </form>
