@@ -8,7 +8,7 @@ const transactionCreateSchema = z.object({
   type: z.enum(["income", "expense"]),
   amount: z.number().finite().positive(),
   category: z.string().trim().max(80).optional().nullable(),
-  payment_method: z.enum(["Cash", "Bank", "Wallet", "Card"]).optional().nullable(),
+  payment_method: z.string().trim().max(50).optional().nullable(),
   note: z.string().trim().max(500).optional().nullable(),
   date: z.string().trim().min(4),
   is_initial: z.boolean().optional(),
@@ -25,9 +25,9 @@ const transactionUpdateSchema = transactionCreateSchema.partial().extend({
 transactionsRouter.get("/", (_req, res) => {
   const rows = db
     .prepare(
-      `SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, created_at
+      `SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, transfer_id, created_at
        FROM transactions
-       WHERE is_initial = 0
+       WHERE is_initial = 0 AND category != 'Transfer'
        ORDER BY date DESC, id DESC`
     )
     .all() as TransactionRow[];
@@ -58,7 +58,7 @@ transactionsRouter.post("/", (req, res) => {
 
   const created = db
     .prepare(
-      `SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, created_at
+      `SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, transfer_id, created_at
        FROM transactions
        WHERE id = ?`
     )
@@ -129,7 +129,7 @@ transactionsRouter.put("/:id", (req, res) => {
 
   const updated = db
     .prepare(
-      `SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, created_at
+      `SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, transfer_id, created_at
        FROM transactions
        WHERE id = ?`
     )
@@ -148,7 +148,6 @@ transactionsRouter.delete("/:id", (req, res) => {
 });
 
 transactionsRouter.get("/balances", (_req, res) => {
-  const defaultMethods = ["Cash", "Bank", "Wallet", "Card"];
 
   const rows = db
     .prepare(
@@ -161,17 +160,16 @@ transactionsRouter.get("/balances", (_req, res) => {
     )
     .all() as { payment_method: string | null; income: number; expense: number }[];
 
-  const methodBalances = new Map<string, number>(
-    defaultMethods.map((m) => [m, 0])
-  );
+  const allWallets = db.prepare("SELECT name FROM wallets").all() as { name: string }[];
+  const walletBalances = new Map<string, number>(allWallets.map(w => [w.name, 0]));
 
   for (const row of rows) {
-    if (row.payment_method && methodBalances.has(row.payment_method)) {
-      methodBalances.set(row.payment_method, row.income - row.expense);
+    if (row.payment_method && walletBalances.has(row.payment_method)) {
+      walletBalances.set(row.payment_method, row.income - row.expense);
     }
   }
 
-  const balances = Array.from(methodBalances.entries()).map(([method, balance]) => ({
+  const balances = Array.from(walletBalances.entries()).map(([method, balance]) => ({
     payment_method: method,
     balance: balance,
   }));
@@ -199,7 +197,7 @@ transactionsRouter.get("/category-totals", (req, res) => {
     .prepare(
       `SELECT category, SUM(amount) as total
       FROM transactions
-      WHERE type = 'income' AND is_initial = 0${whereClause}
+      WHERE type = 'income' AND is_initial = 0 AND category != 'Transfer'${whereClause}
       GROUP BY category`
     )
     .all(...params) as { category: string; total: number }[];
@@ -208,10 +206,28 @@ transactionsRouter.get("/category-totals", (req, res) => {
     .prepare(
       `SELECT category, SUM(amount) as total
       FROM transactions
-      WHERE type = 'expense' AND is_initial = 0${whereClause}
+      WHERE type = 'expense' AND is_initial = 0 AND category != 'Transfer'${whereClause}
       GROUP BY category`
     )
     .all(...params) as { category: string; total: number }[];
 
   res.json({ income, expense });
+});
+
+transactionsRouter.get("/transfers", (_req, res) => {
+  const rows = db.prepare(`
+    SELECT 
+      transfer_id,
+      date,
+      amount,
+      note,
+      MAX(CASE WHEN type = 'expense' THEN payment_method END) as from_wallet,
+      MAX(CASE WHEN type = 'income' THEN payment_method END) as to_wallet
+    FROM transactions
+    WHERE category = 'Transfer' AND transfer_id IS NOT NULL
+    GROUP BY transfer_id
+    ORDER BY date DESC, created_at DESC
+  `).all() as { transfer_id: string; date: string; amount: number; note: string; from_wallet: string; to_wallet: string }[];
+
+  res.json(rows);
 });

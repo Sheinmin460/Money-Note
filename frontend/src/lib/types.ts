@@ -1,6 +1,6 @@
 export type TransactionType = "income" | "expense";
 
-export type PaymentMethod = "Cash" | "Bank" | "Wallet" | "Card";
+export type PaymentMethod = string;
 
 export type Transaction = {
   id: number;
@@ -11,8 +11,9 @@ export type Transaction = {
   note: string | null;
   date: string; // YYYY-MM-DD
   is_initial?: boolean;
-  project_id: number | null;
-  created_at: string;
+  project_id?: number | null;
+  transfer_id?: string | null;
+  created_at?: string;
 };
 
 export type TransactionCreate = {
@@ -39,4 +40,23 @@ export type ProjectDetail = Project & {
   expense: number;
   profit: number;
   transactions: Transaction[];
+};
+export type Wallet = {
+  id: number;
+  name: string;
+  created_at: string;
+};
+
+export type WalletBalance = {
+  payment_method: string;
+  balance: number;
+};
+
+export type TransferLog = {
+  transfer_id: string;
+  date: string;
+  amount: number;
+  note: string;
+  from_wallet: string;
+  to_wallet: string;
 };

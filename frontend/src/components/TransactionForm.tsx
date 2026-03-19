@@ -4,7 +4,7 @@ import { todayISO } from "../lib/format";
 import { Button } from "./Button";
 import { api } from "../lib/api";
 
-const paymentMethods: PaymentMethod[] = ["Cash", "Bank", "Wallet", "Card"];
+// Removed hardcoded paymentMethods
 
 type FormValues = {
   type: TransactionType;
@@ -42,10 +42,19 @@ export function TransactionForm({
   const isEdit = !!initial;
   const [values, setValues] = useState<FormValues>(() => toFormValues(initial));
   const [projects, setProjects] = useState<Project[]>([]);
+  const [wallets, setWallets] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api.listProjects().then(setProjects).catch(console.error);
+    api.getBalances().then(data => {
+      const names = data.map(w => w.payment_method);
+      setWallets(names);
+      // If creating new and no wallet selected, default to first one if available
+      if (!isEdit && !values.payment_method && names.length > 0) {
+        setValues(v => ({ ...v, payment_method: names[0] }));
+      }
+    }).catch(console.error);
   }, []);
 
   const canSubmit = useMemo(() => {
@@ -134,11 +143,14 @@ export function TransactionForm({
               setValues((v) => ({ ...v, payment_method: e.target.value as PaymentMethod }))
             }
           >
-            {paymentMethods.map((m) => (
+            {wallets.map((m) => (
               <option key={m} value={m}>
                 {m}
               </option>
             ))}
+            {wallets.length === 0 && (
+              <option value="">No Wallets Found</option>
+            )}
           </select>
         </label>
 

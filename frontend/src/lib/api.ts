@@ -1,4 +1,4 @@
-import type { Transaction, TransactionCreate, TransactionUpdate } from "./types";
+import type { Transaction, TransactionCreate, TransactionUpdate, Wallet, WalletBalance, TransferLog } from "./types";
 
 const API_BASE = (import.meta as unknown as { env: Record<string, string> }).env?.VITE_API_URL
   ? String((import.meta as unknown as { env: Record<string, string> }).env.VITE_API_URL).replace(/\/+$/, "")
@@ -53,8 +53,31 @@ export const api = {
   deleteTransaction(id: number): Promise<void> {
     return request<void>(`/transactions/${id}`, { method: "DELETE" });
   },
-  getBalances(): Promise<{ payment_method: string; balance: number }[]> {
-    return request<{ payment_method: string; balance: number }[]>("/transactions/balances");
+  getBalances(): Promise<WalletBalance[]> {
+    return request<WalletBalance[]>("/transactions/balances");
+  },
+  listWallets(): Promise<Wallet[]> {
+    return request<Wallet[]>("/wallets");
+  },
+
+  listTransfers(): Promise<TransferLog[]> {
+    return request<TransferLog[]>("/transactions/transfers");
+  },
+
+  createWallet(name: string): Promise<Wallet> {
+    return request<Wallet>("/wallets", {
+      method: "POST",
+      body: JSON.stringify({ name })
+    });
+  },
+  deleteWallet(name: string): Promise<void> {
+    return request<void>(`/wallets/${name}`, { method: "DELETE" });
+  },
+  transferMoney(payload: { from: string; to: string; amount: number; date: string; note?: string }): Promise<{ message: string }> {
+    return request<{ message: string }>("/wallets/transfer", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
   },
   getCategoryTotals(from?: string, to?: string, categories?: string[]): Promise<{ income: { category: string; total: number }[]; expense: { category: string; total: number }[] }> {
     const params = new URLSearchParams();

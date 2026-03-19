@@ -28,6 +28,13 @@ CREATE TABLE IF NOT EXISTS transactions (
   date TEXT NOT NULL,
   is_initial INTEGER DEFAULT 0,
   project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+  transfer_id TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS wallets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT UNIQUE NOT NULL,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 `);
@@ -46,6 +53,33 @@ try {
   db.exec("ALTER TABLE transactions ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL");
 }
 
+// Migration: Add transfer_id column if it doesn't exist
+try {
+  db.prepare("SELECT transfer_id FROM transactions LIMIT 1").get();
+} catch (e) {
+  db.exec("ALTER TABLE transactions ADD COLUMN transfer_id TEXT");
+}
+
+// Migration: Populate wallets table if empty
+const walletCount = (db.prepare("SELECT COUNT(*) as count FROM wallets").get() as { count: number }).count;
+if (walletCount === 0) {
+  const defaultWallets = ["Cash", "Bank", "Wallet", "Card"];
+
+  // Also get any existing payment methods used in transactions
+  const existingMethods = db.prepare("SELECT DISTINCT payment_method FROM transactions WHERE payment_method IS NOT NULL").all() as { payment_method: string }[];
+
+  const allWallets = new Set([...defaultWallets, ...existingMethods.map(m => m.payment_method)]);
+
+  const insertWallet = db.prepare("INSERT INTO wallets (name) VALUES (?)");
+  for (const name of allWallets) {
+    try {
+      insertWallet.run(name);
+    } catch (e) {
+      // Ignore duplicates
+    }
+  }
+}
+
 export type TransactionRow = {
   id: number;
   type: "income" | "expense";
@@ -56,6 +90,7 @@ export type TransactionRow = {
   date: string;
   is_initial: number;
   project_id: number | null;
+  transfer_id: string | null;
   created_at: string;
 };
 
