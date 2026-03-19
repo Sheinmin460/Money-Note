@@ -9,9 +9,12 @@
 - **Summary Dashboard**: Instantly see your total income, expenses, and current balance.
 - **Projects Management**: Group transactions into projects to track specific budgets or ventures. See dedicated summaries and transaction lists for each project.
 - **Transaction Management**: Easily add, edit, and delete transactions with optional project assignment.
-- **Categorization**: Organize your cash flow by categories and payment methods (Cash, Bank, Wallet, Card).
+- **Categorization**: Organize your cash flow by categories and dynamic payment methods.
+- **Wallet Management**: Create and manage multiple wallets (Cash, Bank, Savings, etc.) with real-time balance tracking.
+- **Separate Transfer Logs**: Move funds between wallets without affecting your main income/expense charts. Dedicated logs for all internal movements.
 - **Responsive Design**: A premium, "loveable" UI built with Tailwind CSS, optimized for both desktop and mobile.
-- **Security & Integrity**: Built-in data validation with Zod and clean SQLite data management.
+- **Premium UX**: Custom modal system for confirmations and error handling, replacing native browser alerts for a professional feel.
+- **Security & Integrity**: Built-in data validation with Zod and clean SQLite data management with automatic migrations.
 
 ## 🛠️ Technology Stack
 
@@ -80,6 +83,11 @@ npm run dev
 | `POST` | `/projects` | Create a new project |
 | `GET` | `/projects/:id` | Get project details and filtered transactions |
 | `DELETE` | `/projects/:id` | Delete a project |
+| `GET` | `/wallets` | List all available wallets and their balances |
+| `POST` | `/wallets` | Create a new wallet |
+| `DELETE` | `/wallets/:name` | Delete a wallet (only if balance is zero) |
+| `POST` | `/wallets/transfer` | Transfer money between two wallets |
+| `GET` | `/transactions/transfers` | List all internal wallet transfer logs |
 
 ---
 
