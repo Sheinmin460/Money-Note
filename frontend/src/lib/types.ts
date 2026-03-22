@@ -41,6 +41,7 @@ export type ProjectDetail = Project & {
   profit: number;
   transactions: Transaction[];
 };
+
 export type Wallet = {
   id: number;
   name: string;
@@ -63,4 +64,16 @@ export type TransferLog = {
   note: string;
   from_wallet: string;
   to_wallet: string;
+};
+
+export type User = {
+  id: number;
+  username: string;
+  email: string;
+  created_at: string;
+};
+
+export type AuthResponse = {
+  user: User;
+  token: string;
 };

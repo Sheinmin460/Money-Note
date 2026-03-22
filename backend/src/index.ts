@@ -3,6 +3,8 @@ import cors from "cors";
 import { transactionsRouter } from "./transactions.js";
 import { projectsRouter } from "./projects.js";
 import { walletsRouter } from "./wallets.js";
+import { authRouter } from "./auth.js";
+import { requireAuth } from "./middleware.js";
 
 const app = express();
 
@@ -10,12 +12,16 @@ app.use(
   cors({
     origin: ["http://localhost:5173"],
     methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type"]
+    allowedHeaders: ["Content-Type", "Authorization"]
   })
 );
 app.use(express.json({ limit: "256kb" }));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
+
+// Public auth routes (no token required)
+app.use("/auth", authRouter);
+
 app.use("/transactions", transactionsRouter);
 app.use("/projects", projectsRouter);
 app.use("/wallets", walletsRouter);

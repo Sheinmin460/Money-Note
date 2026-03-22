@@ -7,6 +7,7 @@ import { Button } from './Button';
 import { WalletSubNav } from './WalletSubNav';
 import { ConfirmModal } from './ConfirmModal';
 import type { WalletBalance } from '../lib/types';
+import { CardSkeleton } from './Skeleton';
 
 export default function WalletsPage() {
     const [balances, setBalances] = useState<WalletBalance[]>([]);
@@ -248,9 +249,7 @@ export default function WalletsPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {loading && balances.length === 0 ? (
-                        [1, 2, 3, 4].map(i => (
-                            <div key={i} className="h-32 bg-white rounded-2xl ring-1 ring-slate-100 animate-pulse"></div>
-                        ))
+                        [1, 2, 3, 4].map((i) => <CardSkeleton key={i} />)
                     ) : (
                         balances.map(wallet => (
                             <div key={wallet.payment_method} className="group relative bg-white p-6 rounded-2xl shadow-sm ring-1 ring-slate-200 hover:shadow-md hover:ring-slate-300 transition-all">

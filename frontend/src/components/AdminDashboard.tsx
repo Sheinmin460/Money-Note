@@ -6,6 +6,7 @@ import PresetRangeFilter from './PresetRangeFilter';
 import CategoryPieChart from './CategoryPieChart';
 import { Header } from './Header';
 import { formatCurrency } from '../lib/format';
+import { CardSkeleton, Skeleton } from './Skeleton';
 
 interface WalletBalance {
   payment_method: string;
@@ -217,9 +218,7 @@ const AdminDashboard: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {loading ? (
-              [1, 2, 3, 4].map(i => (
-                <div key={i} className="h-24 bg-white rounded-xl ring-1 ring-slate-100 animate-pulse"></div>
-              ))
+              [1, 2, 3, 4].map(i => <CardSkeleton key={i} />)
             ) : error ? (
               <div className="col-span-full rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
                 {error}
@@ -247,20 +246,33 @@ const AdminDashboard: React.FC = () => {
                 </h2>
               </div>
               <div className="p-6">
-                <CategoryPieChart data={categoryTotals.income} title="Income Composition" />
-                <div className="mt-6 space-y-2">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Category Totals</p>
-                  {categoryTotals.income.length === 0 ? (
-                    <p className="text-sm text-slate-400 italic">No income in this period.</p>
-                  ) : (
-                    categoryTotals.income.map(c => (
-                      <div key={c.name} className="flex items-center justify-between p-4 rounded-xl bg-emerald-50/50 border border-emerald-100 shadow-sm hover:bg-emerald-50 transition-colors">
-                        <span className="text-sm font-bold text-slate-700">{c.name}</span>
-                        <span className="text-base font-black text-emerald-700">{formatCurrency(c.value)}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
+                {loading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-48 w-full" />
+                    <Skeleton className="h-8 w-1/3" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-12 w-full" />
+                      <Skeleton className="h-12 w-full" />
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <CategoryPieChart data={categoryTotals.income} title="Income Composition" />
+                    <div className="mt-6 space-y-2">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Category Totals</p>
+                      {categoryTotals.income.length === 0 ? (
+                        <p className="text-sm text-slate-400 italic">No income in this period.</p>
+                      ) : (
+                        categoryTotals.income.map(c => (
+                          <div key={c.name} className="flex items-center justify-between p-4 rounded-xl bg-emerald-50/50 border border-emerald-100 shadow-sm hover:bg-emerald-50 transition-colors">
+                            <span className="text-sm font-bold text-slate-700">{c.name}</span>
+                            <span className="text-base font-black text-emerald-700">{formatCurrency(c.value)}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </section>
@@ -276,20 +288,33 @@ const AdminDashboard: React.FC = () => {
                 </h2>
               </div>
               <div className="p-6">
-                <CategoryPieChart data={categoryTotals.expense} title="Expense Composition" />
-                <div className="mt-6 space-y-2">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Category Totals</p>
-                  {categoryTotals.expense.length === 0 ? (
-                    <p className="text-sm text-slate-400 italic">No expenses in this period.</p>
-                  ) : (
-                    categoryTotals.expense.map(c => (
-                      <div key={c.name} className="flex items-center justify-between p-4 rounded-xl bg-rose-50/50 border border-rose-100 shadow-sm hover:bg-rose-50 transition-colors">
-                        <span className="text-sm font-bold text-slate-700">{c.name}</span>
-                        <span className="text-base font-black text-rose-700">{formatCurrency(c.value)}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
+                {loading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-48 w-full" />
+                    <Skeleton className="h-8 w-1/3" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-12 w-full" />
+                      <Skeleton className="h-12 w-full" />
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <CategoryPieChart data={categoryTotals.expense} title="Expense Composition" />
+                    <div className="mt-6 space-y-2">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Category Totals</p>
+                      {categoryTotals.expense.length === 0 ? (
+                        <p className="text-sm text-slate-400 italic">No expenses in this period.</p>
+                      ) : (
+                        categoryTotals.expense.map(c => (
+                          <div key={c.name} className="flex items-center justify-between p-4 rounded-xl bg-rose-50/50 border border-rose-100 shadow-sm hover:bg-rose-50 transition-colors">
+                            <span className="text-sm font-bold text-slate-700">{c.name}</span>
+                            <span className="text-base font-black text-rose-700">{formatCurrency(c.value)}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </section>

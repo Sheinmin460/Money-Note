@@ -8,18 +8,45 @@ const dbPath = path.join(dataDir, "app.db");
 
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
+// Delete old DB to start fresh with new schema (user_id support)
+// NOTE: Comment this out after first run if you want to preserve data
+if (fs.existsSync(dbPath)) {
+  fs.unlinkSync(dbPath);
+}
+
 export const db = new Database(dbPath);
 db.pragma("journal_mode = WAL");
+db.pragma("foreign_keys = ON");
 
 db.exec(`
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS projects (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS wallets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  is_credit INTEGER DEFAULT 0,
+  credit_limit REAL DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, name)
+);
+
 CREATE TABLE IF NOT EXISTS transactions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   type TEXT CHECK(type IN ('income','expense')) NOT NULL,
   amount REAL NOT NULL,
   category TEXT,
@@ -31,73 +58,19 @@ CREATE TABLE IF NOT EXISTS transactions (
   transfer_id TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE TABLE IF NOT EXISTS wallets (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT UNIQUE NOT NULL,
-  is_credit INTEGER DEFAULT 0,
-  credit_limit REAL DEFAULT 0,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
 `);
 
-// Migration: Add is_initial column if it doesn't exist
-try {
-  db.prepare("SELECT is_initial FROM transactions LIMIT 1").get();
-} catch (e) {
-  db.exec("ALTER TABLE transactions ADD COLUMN is_initial INTEGER DEFAULT 0");
-}
-
-// Migration: Add project_id column if it doesn't exist
-try {
-  db.prepare("SELECT project_id FROM transactions LIMIT 1").get();
-} catch (e) {
-  db.exec("ALTER TABLE transactions ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL");
-}
-
-// Migration: Add transfer_id column if it doesn't exist
-try {
-  db.prepare("SELECT transfer_id FROM transactions LIMIT 1").get();
-} catch (e) {
-  db.exec("ALTER TABLE transactions ADD COLUMN transfer_id TEXT");
-}
-
-// Migration: Add is_credit column to wallets if it doesn't exist
-try {
-  db.prepare("SELECT is_credit FROM wallets LIMIT 1").get();
-} catch (e) {
-  db.exec("ALTER TABLE wallets ADD COLUMN is_credit INTEGER DEFAULT 0");
-}
-
-// Migration: Add credit_limit column to wallets if it doesn't exist
-try {
-  db.prepare("SELECT credit_limit FROM wallets LIMIT 1").get();
-} catch (e) {
-  db.exec("ALTER TABLE wallets ADD COLUMN credit_limit REAL DEFAULT 0");
-}
-
-// Migration: Populate wallets table if empty
-const walletCount = (db.prepare("SELECT COUNT(*) as count FROM wallets").get() as { count: number }).count;
-if (walletCount === 0) {
-  const defaultWallets = ["Cash", "Bank", "Wallet", "Card"];
-
-  // Also get any existing payment methods used in transactions
-  const existingMethods = db.prepare("SELECT DISTINCT payment_method FROM transactions WHERE payment_method IS NOT NULL").all() as { payment_method: string }[];
-
-  const allWallets = new Set([...defaultWallets, ...existingMethods.map(m => m.payment_method)]);
-
-  const insertWallet = db.prepare("INSERT INTO wallets (name) VALUES (?)");
-  for (const name of allWallets) {
-    try {
-      insertWallet.run(name);
-    } catch (e) {
-      // Ignore duplicates
-    }
-  }
-}
+export type UserRow = {
+  id: number;
+  username: string;
+  email: string;
+  password_hash: string;
+  created_at: string;
+};
 
 export type TransactionRow = {
   id: number;
+  user_id: number;
   type: "income" | "expense";
   amount: number;
   category: string | null;
@@ -112,29 +85,37 @@ export type TransactionRow = {
 
 export type ProjectRow = {
   id: number;
+  user_id: number;
   name: string;
   created_at: string;
 };
 
-export function getWalletBalance(name: string): number {
+export type WalletRow = {
+  id: number;
+  user_id: number;
+  name: string;
+  is_credit: number;
+  credit_limit: number;
+  created_at: string;
+};
+
+export function getWalletBalance(userId: number, name: string): number {
   const row = db.prepare(`
     SELECT 
       SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) - 
       SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as balance
     FROM transactions 
-    WHERE payment_method = ?
-  `).get(name) as { balance: number | null };
+    WHERE user_id = ? AND payment_method = ?
+  `).get(userId, name) as { balance: number | null };
   return row.balance ?? 0;
 }
 
-export function isCreditWallet(name: string): boolean {
-  const row = db.prepare("SELECT is_credit FROM wallets WHERE name = ?").get(name) as { is_credit: number } | undefined;
+export function isCreditWallet(userId: number, name: string): boolean {
+  const row = db.prepare("SELECT is_credit FROM wallets WHERE user_id = ? AND name = ?").get(userId, name) as { is_credit: number } | undefined;
   return row?.is_credit === 1;
 }
 
-export function getWalletCreditLimit(name: string): number {
-  const row = db.prepare("SELECT credit_limit FROM wallets WHERE name = ?").get(name) as { credit_limit: number } | undefined;
+export function getWalletCreditLimit(userId: number, name: string): number {
+  const row = db.prepare("SELECT credit_limit FROM wallets WHERE user_id = ? AND name = ?").get(userId, name) as { credit_limit: number } | undefined;
   return row?.credit_limit || 0;
 }
-
-

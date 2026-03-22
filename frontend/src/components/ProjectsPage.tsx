@@ -7,6 +7,7 @@ import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Link } from "react-router-dom";
 import { ConfirmationModal } from "../components/ConfirmationModal";
+import { Skeleton } from "../components/Skeleton";
 
 export default function ProjectsPage() {
     const [projects, setProjects] = useState<Project[]>([]);
@@ -98,8 +99,13 @@ export default function ProjectsPage() {
                 </Card>
 
                 <section className="grid grid-cols-1 gap-4">
-                    {loading ? (
-                        <div className="text-center py-12 text-slate-400 font-bold uppercase tracking-widest animate-pulse">Loading Projects...</div>
+                    {loading && projects.length === 0 ? (
+                        [1, 2, 3].map((i) => (
+                            <div key={i} className="h-20 bg-white rounded-2xl ring-1 ring-slate-100 p-5 flex items-center justify-between">
+                                <Skeleton className="h-6 w-1/3" />
+                                <Skeleton className="h-6 w-24" />
+                            </div>
+                        ))
                     ) : projects.length === 0 ? (
                         <div className="text-center py-12 text-slate-400 font-bold">No projects yet. Create your first one above!</div>
                     ) : (

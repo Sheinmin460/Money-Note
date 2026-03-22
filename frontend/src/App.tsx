@@ -9,6 +9,7 @@ import { TransactionTable } from "./components/TransactionTable";
 import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
 import { ConfirmationModal } from "./components/ConfirmationModal";
+import { CardSkeleton, Skeleton, TableRowSkeleton } from "./components/Skeleton";
 
 export default function App() {
   const [items, setItems] = useState<Transaction[]>([]);
@@ -127,32 +128,51 @@ export default function App() {
           </div>
         ) : null}
 
-        <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
-          <SummaryCard label="Income" value={formatCurrency(totals.income)} tone="green" />
-          <SummaryCard label="Expense" value={formatCurrency(totals.expense)} tone="red" />
-          <SummaryCard label="Profit" value={formatCurrency(totals.profit)} tone={totals.profit >= 0 ? "green" : "red"} />
-          <SummaryCard label="Balance" value={formatCurrency(totals.balance)} tone="blue" />
-        </section>
+        {loading && items.length === 0 ? (
+          <>
+            <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => <CardSkeleton key={i} />)}
+            </section>
+            <section className="space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-white overflow-hidden shadow-sm">
+                {[1, 2, 3, 4, 5].map((i) => <TableRowSkeleton key={i} />)}
+              </div>
+            </section>
+          </>
+        ) : (
+          <>
+            <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
+              <SummaryCard label="Income" value={formatCurrency(totals.income)} tone="green" />
+              <SummaryCard label="Expense" value={formatCurrency(totals.expense)} tone="red" />
+              <SummaryCard label="Profit" value={formatCurrency(totals.profit)} tone={totals.profit >= 0 ? "green" : "red"} />
+              <SummaryCard label="Balance" value={formatCurrency(totals.balance)} tone="blue" />
+            </section>
 
-        <section className="space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-black text-slate-900 tracking-tight">Recent Activity</h2>
-              <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-500">
-                {items.length}
-              </span>
-            </div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              {loading ? "Syncing..." : "All Clear"}
-            </div>
-          </div>
-          <TransactionTable
-            items={items}
-            onEdit={openEdit}
-            onDelete={(tx) => setConfirmDelete({ open: true, tx })}
-            busyId={busyId}
-          />
-        </section>
+            <section className="space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight">Recent Activity</h2>
+                  <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-500">
+                    {items.length}
+                  </span>
+                </div>
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  {loading ? "Syncing..." : "All Up to Date"}
+                </div>
+              </div>
+              <TransactionTable
+                items={items}
+                onEdit={openEdit}
+                onDelete={(tx) => setConfirmDelete({ open: true, tx })}
+                busyId={busyId}
+              />
+            </section>
+          </>
+        )}
       </main>
 
       <ConfirmationModal
