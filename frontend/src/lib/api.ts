@@ -131,5 +131,11 @@ export const api = {
   },
   getProjectDetail(id: number): Promise<import("./types").ProjectDetail> {
     return request<import("./types").ProjectDetail>(`/projects/${id}`);
+  },
+  addCollaborator(projectId: number, data: { email: string; password: string }): Promise<{ message: string }> {
+    return request<{ message: string }>(`/projects/${projectId}/collaborators`, { method: "POST", body: JSON.stringify(data) });
+  },
+  removeCollaborator(projectId: number, userId: number): Promise<void> {
+    return request<void>(`/projects/${projectId}/collaborators/${userId}`, { method: "DELETE" });
   }
 };

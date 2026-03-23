@@ -8,10 +8,13 @@
 
 - **Profit Dashboard**: Instantly see your total income, expenses, profit, and current balance in a modern, card-based interface.
 - **Projects Management**: Group transactions into projects to track specific budgets or ventures with dedicated summaries.
+- **User Authentication**: Secure your data with personal accounts. Each user has their own private set of wallets, projects, and transactions.
+- **Project Collaboration**: Share projects with other users. Invite collaborators via email and manage their access dynamically.
 - **Credit Wallets & Limits**: Create specialized "Credit" wallets that allow negative balances up to a custom-defined credit limit.
 - **Wallet Management**: Full CRUD support for wallets (Cash, Bank, Credit). Renaming a wallet automatically updates all its associated transactions.
-- **Categorization**: Mandatory categorization for clear reporting. Smart filters include "NULL" category handling to ensure no transaction is lost.
+- **Categorization & Filters**: Mandatory categorization for clear reporting. Smart filters include "NULL" category handling and custom date ranges.
 - **Separate Transfer Logs**: Move funds between wallets without affecting your main income/expense charts.
+- **Skeleton Loading**: A premium UI experience with smooth loading states across all pages.
 - **Security & Integrity**: Transactional database updates (using SQLite BEGIN/COMMIT) ensure data consistency even during complex operations like wallet renaming.
 
 ## 🛠️ Technology Stack
@@ -73,7 +76,10 @@ npm run dev
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/transactions` | List all transactions including those with no category |
+| `POST` | `/auth/register` | Create a new user account |
+| `POST` | `/auth/login` | Authenticate and receive a JWT token |
+| `GET` | `/auth/me` | Get current authenticated user details |
+| `GET` | `/transactions` | List all transactions for the current user |
 | `POST` | `/transactions` | Create a transaction (with balance & credit limit checks) |
 | `PUT` | `/transactions/:id` | Update a transaction (re-validates balance/limits) |
 | `DELETE` | `/transactions/:id` | Remove a transaction |
@@ -84,6 +90,11 @@ npm run dev
 | `DELETE` | `/wallets/:name` | Delete a wallet (balance must be zero) |
 | `POST` | `/wallets/transfer` | Atomic transfer between wallets with limit checks |
 | `GET` | `/transactions/transfers` | List all internal wallet transfer logs |
+| `GET` | `/projects` | List all projects owned by or shared with the user |
+| `POST` | `/projects` | Create a new project |
+| `GET` | `/projects/:id` | Get project details, transactions, and collaborators |
+| `POST` | `/projects/:id/collaborators` | Invite a collaborator via email and password confirmation |
+| `DELETE` | `/projects/:id/collaborators/:uid` | Remove a collaborator from a project |
 
 ---
 

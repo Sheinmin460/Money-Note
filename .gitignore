@@ -1,13 +1,50 @@
-node_modules
-.DS_Store
+# Dependency directories
+node_modules/
+jspm_packages/
 
-# frontend
-frontend/dist
-frontend/.vite
+# Build outputs
+dist/
+build/
+.vite/
 
-# backend
-backend/dist
+# Frontend specific
+frontend/dist/
+frontend/.vite/
+
+# Backend specific
+backend/dist/
 backend/data/*.db
 backend/data/*.db-journal
 backend/data/*.db-shm
 backend/data/*.db-wal
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+*.env.*
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
-import type { Transaction, TransactionCreate } from "../lib/types";
+import type { Project, Transaction, TransactionCreate } from "../lib/types";
 import { formatCurrency } from "../lib/format";
+import { Link } from "react-router-dom";
 import { Modal } from "../components/Modal";
 import { SummaryCard } from "../components/SummaryCard";
 import { TransactionForm } from "../components/TransactionForm";
@@ -22,6 +23,7 @@ export default function HomePage() {
     const [busyId, setBusyId] = useState<number | null>(null);
 
     const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; tx?: Transaction }>({ open: false });
+    const [invitations, setInvitations] = useState<Project[]>([]);
 
     const totals = useMemo(() => {
         const income = items
@@ -42,17 +44,28 @@ export default function HomePage() {
         setError(null);
         setLoading(true);
         try {
-            const [txData, balanceData] = await Promise.all([
+            const [txData, balanceData, projects] = await Promise.all([
                 api.listTransactions(),
-                api.getBalances()
+                api.getBalances(),
+                api.listProjects()
             ]);
             setItems(txData);
             setBalances(balanceData);
+
+            const acknowledged = JSON.parse(localStorage.getItem('mn_ack_invites') || '[]');
+            const newInvites = projects.filter(p => !p.is_owner && !acknowledged.includes(p.id));
+            setInvitations(newInvites);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load data.");
         } finally {
             setLoading(false);
         }
+    };
+
+    const ackInvite = (id: number) => {
+        const acknowledged = JSON.parse(localStorage.getItem('mn_ack_invites') || '[]');
+        localStorage.setItem('mn_ack_invites', JSON.stringify([...acknowledged, id]));
+        setInvitations(prev => prev.filter(p => p.id !== id));
     };
 
     useEffect(() => {
@@ -128,6 +141,41 @@ export default function HomePage() {
                     </div>
                 ) : null}
 
+                {invitations.length > 0 && (
+                    <div className="space-y-3">
+                        {invitations.map(p => (
+                            <div key={p.id} className="flex items-center justify-between rounded-2xl bg-indigo-600 p-4 text-white shadow-lg animate-in slide-in-from-top duration-500">
+                                <div className="flex items-center gap-3">
+                                    <div className="rounded-full bg-white/20 p-2 text-white">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold">New Project Invitation!</p>
+                                        <p className="text-xs text-indigo-100 italic">You've been invited to collab on <span className="font-bold underline">"{p.name}"</span> by {p.owner_username}.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => ackInvite(p.id)}
+                                        className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold hover:bg-white/20 transition-all"
+                                    >
+                                        Later
+                                    </button>
+                                    <Link
+                                        to={`/projects/${p.id}`}
+                                        onClick={() => ackInvite(p.id)}
+                                        className="rounded-lg bg-white px-4 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition-all shadow-sm"
+                                    >
+                                        View Project
+                                    </Link>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 {loading && items.length === 0 ? (
                     <>
                         <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
@@ -148,7 +196,6 @@ export default function HomePage() {
                         <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
                             <SummaryCard label="Income" value={formatCurrency(totals.income)} tone="green" />
                             <SummaryCard label="Expense" value={formatCurrency(totals.expense)} tone="red" />
-                            <SummaryCard label="Profit" value={formatCurrency(totals.profit)} tone={totals.profit >= 0 ? "green" : "red"} />
                             <SummaryCard label="Balance" value={formatCurrency(totals.balance)} tone="blue" />
                         </section>
 

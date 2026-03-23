@@ -16,7 +16,7 @@ type FormValues = {
   project_id: string; // "null" for No Project
 };
 
-function toFormValues(tx?: Transaction): FormValues {
+function toFormValues(tx?: Transaction, fixedProjectId?: number): FormValues {
   return {
     type: tx?.type ?? "expense",
     amount: tx ? String(tx.amount) : "",
@@ -24,7 +24,7 @@ function toFormValues(tx?: Transaction): FormValues {
     payment_method: (tx?.payment_method as PaymentMethod) ?? "Cash",
     note: tx?.note ?? "",
     date: tx?.date ?? todayISO(),
-    project_id: tx?.project_id ? String(tx.project_id) : "null"
+    project_id: tx?.project_id ? String(tx.project_id) : (fixedProjectId ? String(fixedProjectId) : "null")
   };
 }
 
@@ -32,15 +32,17 @@ export function TransactionForm({
   initial,
   onSubmit,
   onCancel,
-  busy
+  busy,
+  fixedProjectId
 }: {
   initial?: Transaction;
   onSubmit: (payload: TransactionCreate) => Promise<void> | void;
   onCancel: () => void;
   busy?: boolean;
+  fixedProjectId?: number;
 }) {
   const isEdit = !!initial;
-  const [values, setValues] = useState<FormValues>(() => toFormValues(initial));
+  const [values, setValues] = useState<FormValues>(() => toFormValues(initial, fixedProjectId));
   const [projects, setProjects] = useState<Project[]>([]);
   const [wallets, setWallets] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -167,12 +169,13 @@ export function TransactionForm({
           </select>
         </label>
 
-        <label className="space-y-1 sm:col-span-2">
+        <label className={`space-y-1 sm:col-span-2 ${fixedProjectId ? 'opacity-70' : ''}`}>
           <div className="text-sm font-medium text-slate-700">Project</div>
           <select
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400"
+            className={`w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400 ${fixedProjectId ? 'cursor-not-allowed bg-slate-50' : ''}`}
             value={values.project_id}
             onChange={(e) => setValues((v) => ({ ...v, project_id: e.target.value }))}
+            disabled={!!fixedProjectId}
           >
             <option value="null">No Project</option>
             {projects.map((p) => (

@@ -10,9 +10,11 @@ if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
 // Delete old DB to start fresh with new schema (user_id support)
 // NOTE: Comment this out after first run if you want to preserve data
+/*
 if (fs.existsSync(dbPath)) {
   fs.unlinkSync(dbPath);
 }
+*/
 
 export const db = new Database(dbPath);
 db.pragma("journal_mode = WAL");
@@ -58,6 +60,13 @@ CREATE TABLE IF NOT EXISTS transactions (
   transfer_id TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS project_collaborators (
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (project_id, user_id)
+);
 `);
 
 export type UserRow = {
@@ -88,6 +97,8 @@ export type ProjectRow = {
   user_id: number;
   name: string;
   created_at: string;
+  owner_username?: string;
+  owner_email?: string;
 };
 
 export type WalletRow = {

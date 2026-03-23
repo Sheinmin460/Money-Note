@@ -13,6 +13,7 @@ export type Transaction = {
   is_initial?: boolean;
   project_id?: number | null;
   transfer_id?: string | null;
+  user_id: number;
   created_at?: string;
 };
 
@@ -32,14 +33,19 @@ export type TransactionUpdate = Partial<TransactionCreate>;
 export type Project = {
   id: number;
   name: string;
+  user_id: number;
   created_at: string;
+  owner_username?: string;
+  owner_email?: string;
+  is_owner?: boolean;
 };
 
 export type ProjectDetail = Project & {
   income: number;
   expense: number;
   profit: number;
-  transactions: Transaction[];
+  transactions: (Transaction & { user_id: number })[];
+  collaborators: { id: number; username: string; email: string }[];
 };
 
 export type Wallet = {

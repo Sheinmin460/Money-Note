@@ -2,18 +2,22 @@ import type { Transaction } from "../lib/types";
 import { formatCurrency, formatDate } from "../lib/format";
 import { Button } from "./Button";
 import { Card } from "./Card";
+import { useAuth } from "../context/AuthContext";
 
 export function TransactionTable({
   items,
   onEdit,
   onDelete,
+  isProjectOwner,
   busyId
 }: {
   items: Transaction[];
   onEdit: (tx: Transaction) => void;
   onDelete: (tx: Transaction) => void;
+  isProjectOwner?: boolean;
   busyId?: number | null;
 }) {
+  const { user } = useAuth();
   return (
     <Card className="p-0">
       <div className="overflow-x-auto">
@@ -70,15 +74,17 @@ export function TransactionTable({
                       >
                         Edit
                       </Button>
-                      <Button
-                        type="button"
-                        variant="danger"
-                        className="px-3 py-1.5 text-xs"
-                        onClick={() => onDelete(tx)}
-                        disabled={busyId === tx.id}
-                      >
-                        Delete
-                      </Button>
+                      {(isProjectOwner || tx.user_id === user?.id) && (
+                        <Button
+                          type="button"
+                          variant="danger"
+                          className="px-3 py-1.5 text-xs"
+                          onClick={() => onDelete(tx)}
+                          disabled={busyId === tx.id}
+                        >
+                          Delete
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>

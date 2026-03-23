@@ -71,6 +71,16 @@ transactionsRouter.post("/", (req, res) => {
     }
   }
 
+  // Verify project access if provided
+  if (project_id) {
+    const project = db.prepare(`
+        SELECT 1 FROM projects p
+        LEFT JOIN project_collaborators pc ON p.id = pc.project_id
+        WHERE p.id = ? AND (p.user_id = ? OR pc.user_id = ?)
+    `).get(project_id, userId, userId);
+    if (!project) return res.status(403).json({ error: "Access denied to this project" });
+  }
+
   const stmt = db.prepare(
     `INSERT INTO transactions (user_id, type, amount, category, payment_method, note, date, is_initial, project_id)
      VALUES (@user_id, @type, @amount, @category, @payment_method, @note, @date, @is_initial, @project_id)`
@@ -167,8 +177,27 @@ transactionsRouter.delete("/:id", (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) return res.status(400).json({ error: "Invalid id" });
 
-  const info = db.prepare(`DELETE FROM transactions WHERE id = ? AND user_id = ?`).run(id, userId);
-  if (info.changes === 0) return res.status(404).json({ error: "Not found" });
+  const tx = db.prepare("SELECT * FROM transactions WHERE id = ?").get(id) as TransactionRow | undefined;
+  if (!tx) return res.status(404).json({ error: "Not found" });
+
+  let canDelete = false;
+
+  // 1. Creator can always delete their own
+  if (tx.user_id === userId) {
+    canDelete = true;
+  } else if (tx.project_id) {
+    // 2. Project owner can delete any transaction in the project
+    const project = db.prepare("SELECT user_id FROM projects WHERE id = ?").get(tx.project_id) as { user_id: number } | undefined;
+    if (project && project.user_id === userId) {
+      canDelete = true;
+    }
+  }
+
+  if (!canDelete) {
+    return res.status(403).json({ error: "Permission denied. You can only delete your own transactions unless you are the project owner." });
+  }
+
+  db.prepare(`DELETE FROM transactions WHERE id = ?`).run(id);
   res.status(204).send();
 });
 

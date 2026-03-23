@@ -57,6 +57,7 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+
   useEffect(() => {
     void fetchBalances();
   }, []);
@@ -71,8 +72,7 @@ const AdminDashboard: React.FC = () => {
       setDraftDateRange(dateRange);
       setDraftSelectedCategories(selectedCategories);
     }
-  }, [isFilterOpen]);
-
+  }, [isFilterOpen, dateRange, selectedCategories]);
 
   const handlePresetSelect = (days: number | 'all') => {
     if (days === 'all') {
@@ -93,11 +93,11 @@ const AdminDashboard: React.FC = () => {
     );
   };
 
-
   return (
     <div className="bg-slate-50 min-h-screen">
       <Header />
       <div className="p-4 sm:p-6">
+
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Admin Dashboard</h1>
@@ -319,7 +319,6 @@ const AdminDashboard: React.FC = () => {
             </div>
           </section>
         </div>
-
       </div>
     </div>
   );
