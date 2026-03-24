@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS projects (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
+  budget_limit REAL DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -58,16 +59,23 @@ CREATE TABLE IF NOT EXISTS transactions (
   is_initial INTEGER DEFAULT 0,
   project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
   transfer_id TEXT,
+  status TEXT DEFAULT 'approved',
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS project_collaborators (
   project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  transaction_limit REAL DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (project_id, user_id)
 );
 `);
+
+// Schema updates for existing databases
+try { db.exec("ALTER TABLE projects ADD COLUMN budget_limit REAL DEFAULT 0"); } catch (e) { }
+try { db.exec("ALTER TABLE transactions ADD COLUMN status TEXT DEFAULT 'approved'"); } catch (e) { }
+try { db.exec("ALTER TABLE project_collaborators ADD COLUMN transaction_limit REAL DEFAULT 0"); } catch (e) { }
 
 export type UserRow = {
   id: number;
@@ -89,6 +97,7 @@ export type TransactionRow = {
   is_initial: number;
   project_id: number | null;
   transfer_id: string | null;
+  status: "approved" | "pending";
   created_at: string;
 };
 
@@ -96,6 +105,7 @@ export type ProjectRow = {
   id: number;
   user_id: number;
   name: string;
+  budget_limit: number;
   created_at: string;
   owner_username?: string;
   owner_email?: string;

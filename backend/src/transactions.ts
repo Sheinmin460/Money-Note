@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { db, type TransactionRow } from "./db.js";
+import { db, type TransactionRow, type ProjectRow } from "./db.js";
 import { requireAuth } from "./middleware.js";
 
 export const transactionsRouter = Router();
@@ -28,7 +28,7 @@ transactionsRouter.get("/", (req, res) => {
   const userId = req.user!.id;
   const rows = db
     .prepare(
-      `SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, transfer_id, created_at
+      `SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, transfer_id, status, created_at
        FROM transactions
        WHERE user_id = ? AND is_initial = 0 AND COALESCE(category, '') != 'Transfer'
        ORDER BY date DESC, id DESC`
@@ -45,9 +45,45 @@ transactionsRouter.post("/", (req, res) => {
   }
 
   const { type, amount, category, payment_method, note, date, is_initial, project_id } = parsed.data;
+  let status: 'approved' | 'pending' = 'approved';
 
-  // Balance check for wallets
-  if (type === "expense" && payment_method) {
+  // Verify project access and check limits if provided
+  if (project_id) {
+    const project = db.prepare(`
+        SELECT p.*, pc.transaction_limit as member_limit
+        FROM projects p
+        LEFT JOIN project_collaborators pc ON p.id = pc.project_id AND pc.user_id = ?
+        WHERE p.id = ? AND (p.user_id = ? OR pc.user_id = ?)
+    `).get(userId, project_id, userId, userId) as (ProjectRow & { member_limit: number | null }) | undefined;
+
+    if (!project) return res.status(403).json({ error: "Access denied to this project" });
+
+    const isOwner = project.user_id === userId;
+
+    if (!isOwner) {
+      // Check member transaction limit
+      if (project.member_limit !== null && project.member_limit > 0 && amount > project.member_limit) {
+        status = 'pending';
+      }
+
+      // Check project budget limit
+      if (project.budget_limit > 0) {
+        const expenseRow = db.prepare(`
+          SELECT SUM(amount) as total_expense
+          FROM transactions
+          WHERE project_id = ? AND type = 'expense' AND status = 'approved'
+        `).get(project_id) as { total_expense: number | null };
+        const currentExpense = expenseRow.total_expense ?? 0;
+
+        if (type === 'expense' && currentExpense + amount > project.budget_limit) {
+          status = 'pending';
+        }
+      }
+    }
+  }
+
+  // Balance check for wallets (only if approved)
+  if (status === 'approved' && type === "expense" && payment_method) {
     const wallet = db.prepare("SELECT is_credit, credit_limit FROM wallets WHERE user_id = ? AND name = ?").get(userId, payment_method) as { is_credit: number, credit_limit: number } | undefined;
     if (wallet) {
       const balanceRow = db.prepare(`
@@ -55,7 +91,7 @@ transactionsRouter.post("/", (req, res) => {
           SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) - 
           SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as balance
         FROM transactions 
-        WHERE user_id = ? AND payment_method = ?
+        WHERE user_id = ? AND payment_method = ? AND status = 'approved'
       `).get(userId, payment_method) as { balance: number | null };
       const currentBalance = balanceRow.balance ?? 0;
 
@@ -71,19 +107,9 @@ transactionsRouter.post("/", (req, res) => {
     }
   }
 
-  // Verify project access if provided
-  if (project_id) {
-    const project = db.prepare(`
-        SELECT 1 FROM projects p
-        LEFT JOIN project_collaborators pc ON p.id = pc.project_id
-        WHERE p.id = ? AND (p.user_id = ? OR pc.user_id = ?)
-    `).get(project_id, userId, userId);
-    if (!project) return res.status(403).json({ error: "Access denied to this project" });
-  }
-
   const stmt = db.prepare(
-    `INSERT INTO transactions (user_id, type, amount, category, payment_method, note, date, is_initial, project_id)
-     VALUES (@user_id, @type, @amount, @category, @payment_method, @note, @date, @is_initial, @project_id)`
+    `INSERT INTO transactions (user_id, type, amount, category, payment_method, note, date, is_initial, project_id, status)
+     VALUES (@user_id, @type, @amount, @category, @payment_method, @note, @date, @is_initial, @project_id, @status)`
   );
   const info = stmt.run({
     user_id: userId,
@@ -94,12 +120,13 @@ transactionsRouter.post("/", (req, res) => {
     note: note ?? null,
     date,
     is_initial: is_initial ? 1 : 0,
-    project_id: project_id ?? null
+    project_id: project_id ?? null,
+    status
   });
 
   const created = db
     .prepare(
-      `SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, transfer_id, created_at
+      `SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, transfer_id, status, created_at
        FROM transactions WHERE id = ?`
     )
     .get(info.lastInsertRowid) as TransactionRow;
@@ -166,7 +193,7 @@ transactionsRouter.put("/:id", (req, res) => {
   }
 
   const updated = db
-    .prepare(`SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, transfer_id, created_at FROM transactions WHERE id = ?`)
+    .prepare(`SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, transfer_id, status, created_at FROM transactions WHERE id = ?`)
     .get(id) as TransactionRow;
 
   res.json(updated);
@@ -211,7 +238,7 @@ transactionsRouter.get("/balances", (req, res) => {
         SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
         SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
       FROM transactions
-      WHERE user_id = ?
+      WHERE user_id = ? AND status = 'approved'
       GROUP BY payment_method`
     )
     .all(userId) as { payment_method: string | null; income: number; expense: number }[];
@@ -258,7 +285,7 @@ transactionsRouter.get("/category-totals", (req, res) => {
     .prepare(
       `SELECT category, SUM(amount) as total
       FROM transactions
-      WHERE user_id = ? AND type = 'income' AND is_initial = 0 AND COALESCE(category, '') != 'Transfer'${whereClause}
+      WHERE user_id = ? AND type = 'income' AND is_initial = 0 AND status = 'approved' AND COALESCE(category, '') != 'Transfer'${whereClause}
       GROUP BY category`
     )
     .all(...params) as { category: string; total: number }[];
@@ -267,12 +294,66 @@ transactionsRouter.get("/category-totals", (req, res) => {
     .prepare(
       `SELECT category, SUM(amount) as total
       FROM transactions
-      WHERE user_id = ? AND type = 'expense' AND is_initial = 0 AND COALESCE(category, '') != 'Transfer'${whereClause}
+      WHERE user_id = ? AND type = 'expense' AND is_initial = 0 AND status = 'approved' AND COALESCE(category, '') != 'Transfer'${whereClause}
       GROUP BY category`
     )
     .all(...params) as { category: string; total: number }[];
 
   res.json({ income, expense });
+});
+
+// Approvals System
+transactionsRouter.get("/approvals/pending", (req, res) => {
+  const userId = req.user!.id;
+  // Get pending transactions for projects owned by the user
+  const rows = db.prepare(`
+    SELECT t.*, u.username as creator_name, p.name as project_name
+    FROM transactions t
+    JOIN projects p ON t.project_id = p.id
+    JOIN users u ON t.user_id = u.id
+    WHERE p.user_id = ? AND t.status = 'pending'
+    ORDER BY t.created_at DESC
+  `).all(userId) as (TransactionRow & { creator_name: string, project_name: string })[];
+
+  res.json(rows);
+});
+
+transactionsRouter.patch("/:id/approve", (req, res) => {
+  const userId = req.user!.id;
+  const id = Number(req.params.id);
+
+  const tx = db.prepare(`
+    SELECT t.*, p.user_id as owner_id
+    FROM transactions t
+    JOIN projects p ON t.project_id = p.id
+    WHERE t.id = ?
+  `).get(id) as (TransactionRow & { owner_id: number }) | undefined;
+
+  if (!tx || tx.owner_id !== userId) {
+    return res.status(403).json({ error: "Only project owner can approve" });
+  }
+
+  db.prepare("UPDATE transactions SET status = 'approved' WHERE id = ?").run(id);
+  res.json({ message: "Transaction approved" });
+});
+
+transactionsRouter.patch("/:id/reject", (req, res) => {
+  const userId = req.user!.id;
+  const id = Number(req.params.id);
+
+  const tx = db.prepare(`
+    SELECT t.*, p.user_id as owner_id
+    FROM transactions t
+    JOIN projects p ON t.project_id = p.id
+    WHERE t.id = ?
+  `).get(id) as (TransactionRow & { owner_id: number }) | undefined;
+
+  if (!tx || tx.owner_id !== userId) {
+    return res.status(403).json({ error: "Only project owner can reject" });
+  }
+
+  db.prepare("DELETE FROM transactions WHERE id = ?").run(id);
+  res.json({ message: "Transaction rejected" });
 });
 
 transactionsRouter.get("/transfers", (req, res) => {

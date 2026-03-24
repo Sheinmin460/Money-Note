@@ -12,6 +12,7 @@ interface AddCollaboratorModalProps {
 export function AddCollaboratorModal({ open, onClose, onSuccess, projectId }: AddCollaboratorModalProps) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [limit, setLimit] = useState<number>(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -21,9 +22,10 @@ export function AddCollaboratorModal({ open, onClose, onSuccess, projectId }: Ad
         setError(null);
 
         try {
-            await api.addCollaborator(projectId, { email, password });
+            await api.addCollaborator(projectId, { email, password, transaction_limit: limit });
             setEmail("");
             setPassword("");
+            setLimit(0);
             onSuccess();
             onClose();
         } catch (err) {
@@ -53,6 +55,22 @@ export function AddCollaboratorModal({ open, onClose, onSuccess, projectId }: Ad
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                     />
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Transaction Limit</label>
+                    <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                        <input
+                            type="number"
+                            className="w-full rounded-xl border-slate-200 bg-slate-50 pl-7 pr-4 py-2.5 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            placeholder="0 (Unlimited)"
+                            value={limit || ""}
+                            onChange={(e) => setLimit(Number(e.target.value))}
+                            min="0"
+                        />
+                    </div>
+                    <p className="text-xs text-slate-500">Optional: maximum amount this member can spend per transaction without approval.</p>
                 </div>
 
                 <div className="space-y-2">

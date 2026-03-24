@@ -24,6 +24,7 @@ export default function HomePage() {
 
     const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; tx?: Transaction }>({ open: false });
     const [invitations, setInvitations] = useState<Project[]>([]);
+    const [pendingApprovals, setPendingApprovals] = useState<import("../lib/types").ApprovalRequest[]>([]);
 
     const totals = useMemo(() => {
         const income = items
@@ -44,13 +45,15 @@ export default function HomePage() {
         setError(null);
         setLoading(true);
         try {
-            const [txData, balanceData, projects] = await Promise.all([
+            const [txData, balanceData, projects, approvals] = await Promise.all([
                 api.listTransactions(),
                 api.getBalances(),
-                api.listProjects()
+                api.listProjects(),
+                api.listPendingApprovals()
             ]);
             setItems(txData);
             setBalances(balanceData);
+            setPendingApprovals(approvals);
 
             const acknowledged = JSON.parse(localStorage.getItem('mn_ack_invites') || '[]');
             const newInvites = projects.filter(p => !p.is_owner && !acknowledged.includes(p.id));
@@ -61,6 +64,7 @@ export default function HomePage() {
             setLoading(false);
         }
     };
+
 
     const ackInvite = (id: number) => {
         const acknowledged = JSON.parse(localStorage.getItem('mn_ack_invites') || '[]');
@@ -100,6 +104,9 @@ export default function HomePage() {
                 setItems((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
             } else {
                 const created = await api.createTransaction(payload);
+                if (created.status === 'pending') {
+                    setError("Transaction exceeds limit and is pending admin approval.");
+                }
                 setItems((prev) => [created, ...prev]);
             }
             setModalOpen(false);
@@ -141,6 +148,30 @@ export default function HomePage() {
                     </div>
                 ) : null}
 
+                {pendingApprovals.length > 0 && (
+                    <div className="rounded-2xl bg-amber-600 p-4 text-white shadow-lg animate-in slide-in-from-top duration-500">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-full bg-white/20 p-2 text-white">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-black text-amber-50">Admin Approval Required</p>
+                                    <p className="text-xs text-amber-100 font-medium">You have {pendingApprovals.length} transaction{pendingApprovals.length > 1 ? 's' : ''} waiting for your approval.</p>
+                                </div>
+                            </div>
+                            <Link
+                                to="/projects"
+                                className="rounded-xl bg-white px-4 py-2 text-xs font-black text-amber-600 hover:bg-amber-50 transition-all shadow-md active:scale-95"
+                            >
+                                View Projects
+                            </Link>
+                        </div>
+                    </div>
+                )}
+
                 {invitations.length > 0 && (
                     <div className="space-y-3">
                         {invitations.map(p => (
@@ -152,14 +183,14 @@ export default function HomePage() {
                                         </svg>
                                     </div>
                                     <div>
-                                        <p className="text-sm font-bold">New Project Invitation!</p>
+                                        <p className="text-sm font-bold text-indigo-50">New Project Invitation!</p>
                                         <p className="text-xs text-indigo-100 italic">You've been invited to collab on <span className="font-bold underline">"{p.name}"</span> by {p.owner_username}.</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={() => ackInvite(p.id)}
-                                        className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold hover:bg-white/20 transition-all"
+                                        className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold hover:bg-white/20 transition-all text-white"
                                     >
                                         Later
                                     </button>
@@ -196,7 +227,8 @@ export default function HomePage() {
                         <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
                             <SummaryCard label="Income" value={formatCurrency(totals.income)} tone="green" />
                             <SummaryCard label="Expense" value={formatCurrency(totals.expense)} tone="red" />
-                            <SummaryCard label="Balance" value={formatCurrency(totals.balance)} tone="blue" />
+                            <SummaryCard label="Profit" value={formatCurrency(totals.profit)} tone="blue" />
+                            <SummaryCard label="Balance" value={formatCurrency(totals.balance)} tone="indigo" />
                         </section>
 
                         <section className="space-y-4">

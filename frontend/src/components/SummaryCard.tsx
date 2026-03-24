@@ -7,12 +7,13 @@ export function SummaryCard({
 }: {
   label: string;
   value: string;
-  tone: "green" | "red" | "blue";
+  tone: "green" | "red" | "blue" | "indigo";
 }) {
   const tones: Record<typeof tone, { badge: string; value: string }> = {
     green: { badge: "bg-emerald-50 text-emerald-700 ring-emerald-200", value: "text-emerald-700" },
     red: { badge: "bg-rose-50 text-rose-700 ring-rose-200", value: "text-rose-700" },
-    blue: { badge: "bg-sky-50 text-sky-700 ring-sky-200", value: "text-sky-700" }
+    blue: { badge: "bg-sky-50 text-sky-700 ring-sky-200", value: "text-sky-700" },
+    indigo: { badge: "bg-indigo-50 text-indigo-700 ring-indigo-200", value: "text-indigo-700" }
   };
 
   return (

@@ -44,45 +44,55 @@ export function TransactionTable({
 
             {items.map((tx) => {
               const isIncome = tx.type === "income";
+              const isPending = tx.status === "pending";
               const tone = isIncome ? "text-emerald-700" : "text-rose-700";
               const badge = isIncome
                 ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
                 : "bg-rose-50 text-rose-700 ring-rose-200";
 
               return (
-                <tr key={tx.id} className="hover:bg-slate-50/60">
+                <tr key={tx.id} className={`hover:bg-slate-50/60 ${isPending ? 'bg-amber-50/50' : ''}`}>
                   <td className="px-4 py-3 text-slate-700">{formatDate(tx.date)}</td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ring-1 ${badge}`}>
-                      {isIncome ? "Income" : "Expense"}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className={`inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-tighter ring-1 ${badge}`}>
+                        {isIncome ? "Income" : "Expense"}
+                      </span>
+                      {isPending && (
+                        <span className="inline-flex w-fit rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700 uppercase tracking-tighter ring-1 ring-amber-200">
+                          Pending Approval
+                        </span>
+                      )}
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{tx.category ?? "—"}</td>
+                  <td className="px-4 py-3 text-slate-700 font-medium">{tx.category ?? "—"}</td>
                   <td className="px-4 py-3 text-slate-700">{tx.payment_method ?? "—"}</td>
-                  <td className={`px-4 py-3 text-right font-semibold ${tone}`}>
+                  <td className={`px-4 py-3 text-right font-black ${tone}`}>
                     {formatCurrency(tx.amount)}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{tx.note ?? "—"}</td>
+                  <td className="px-4 py-3 text-slate-700 italic text-xs">{tx.note ?? "—"}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="px-3 py-1.5 text-xs"
-                        onClick={() => onEdit(tx)}
-                        disabled={busyId === tx.id}
-                      >
-                        Edit
-                      </Button>
+                      {!isPending && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="px-3 py-1.5 text-xs font-bold"
+                          onClick={() => onEdit(tx)}
+                          disabled={busyId === tx.id}
+                        >
+                          Edit
+                        </Button>
+                      )}
                       {(isProjectOwner || tx.user_id === user?.id) && (
                         <Button
                           type="button"
                           variant="danger"
-                          className="px-3 py-1.5 text-xs"
+                          className="px-3 py-1.5 text-xs font-bold"
                           onClick={() => onDelete(tx)}
                           disabled={busyId === tx.id}
                         >
-                          Delete
+                          {isPending ? "Cancel" : "Delete"}
                         </Button>
                       )}
                     </div>

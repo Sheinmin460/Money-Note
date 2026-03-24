@@ -8,12 +8,14 @@ export const projectsRouter = Router();
 projectsRouter.use(requireAuth);
 
 const projectCreateSchema = z.object({
-    name: z.string().trim().min(1).max(100)
+    name: z.string().trim().min(1).max(100),
+    budget_limit: z.number().min(0).default(0)
 });
 
 const inviteCollaboratorSchema = z.object({
     email: z.string().trim().email(),
-    password: z.string().min(1)
+    password: z.string().min(1),
+    transaction_limit: z.number().min(0).default(0)
 });
 
 projectsRouter.get("/", (req, res) => {
@@ -37,11 +39,11 @@ projectsRouter.post("/", (req, res) => {
         return res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
     }
 
-    const { name } = parsed.data;
-    const info = db.prepare("INSERT INTO projects (user_id, name) VALUES (?, ?)").run(userId, name);
+    const { name, budget_limit } = parsed.data;
+    const info = db.prepare("INSERT INTO projects (user_id, name, budget_limit) VALUES (?, ?, ?)").run(userId, name, budget_limit);
 
     const created = db
-        .prepare("SELECT id, name, created_at FROM projects WHERE id = ?")
+        .prepare("SELECT id, name, budget_limit, created_at FROM projects WHERE id = ?")
         .get(info.lastInsertRowid) as ProjectRow;
 
     res.status(201).json(created);
@@ -73,26 +75,28 @@ projectsRouter.get("/:id", (req, res) => {
     if (!project) return res.status(404).json({ error: "Project not found or access denied" });
 
     const transactions = db.prepare(`
-    SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, user_id, created_at
+    SELECT id, type, amount, category, payment_method, note, date, is_initial, project_id, user_id, status, created_at
     FROM transactions
     WHERE project_id = ?
     ORDER BY date DESC, id DESC
   `).all(id) as (TransactionRow & { user_id: number })[];
 
-    const income = transactions
+    const activeTransactions = transactions.filter(t => t.status === 'approved');
+
+    const income = activeTransactions
         .filter(t => t.type === 'income')
         .reduce((sum, t) => sum + t.amount, 0);
 
-    const expense = transactions
+    const expense = activeTransactions
         .filter(t => t.type === 'expense')
         .reduce((sum, t) => sum + t.amount, 0);
 
     const collaborators = db.prepare(`
-        SELECT u.id, u.username, u.email
+        SELECT u.id, u.username, u.email, pc.transaction_limit
         FROM users u
         JOIN project_collaborators pc ON u.id = pc.user_id
         WHERE pc.project_id = ?
-    `).all(id) as Omit<UserRow, "password_hash">[];
+    `).all(id) as (Omit<UserRow, "password_hash"> & { transaction_limit: number })[];
 
     res.json({
         ...project,
@@ -134,9 +138,50 @@ projectsRouter.post("/:id/collaborators", async (req, res) => {
     if (existing) return res.status(400).json({ error: "User is already a collaborator" });
 
     // 5. Add collaborator
-    db.prepare("INSERT INTO project_collaborators (project_id, user_id) VALUES (?, ?)").run(projectId, targetUser.id);
+    db.prepare("INSERT INTO project_collaborators (project_id, user_id, transaction_limit) VALUES (?, ?, ?)").run(projectId, targetUser.id, parsed.data.transaction_limit);
 
     res.status(201).json({ message: "Collaborator invited successfully" });
+});
+
+// Update project settings
+projectsRouter.patch("/:id", (req, res) => {
+    const userId = req.user!.id;
+    const id = Number(req.params.id);
+    const parsed = projectCreateSchema.partial().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Invalid payload" });
+
+    const project = db.prepare("SELECT * FROM projects WHERE id = ? AND user_id = ?").get(id, userId);
+    if (!project) return res.status(404).json({ error: "Project not found" });
+
+    const updates = parsed.data;
+    if (updates.name) {
+        db.prepare("UPDATE projects SET name = ? WHERE id = ?").run(updates.name, id);
+    }
+    if (updates.budget_limit !== undefined) {
+        db.prepare("UPDATE projects SET budget_limit = ? WHERE id = ?").run(updates.budget_limit, id);
+    }
+
+    res.json({ message: "Settings updated" });
+});
+
+// Update collaborator limit
+projectsRouter.patch("/:id/collaborators/:targetUserId", (req, res) => {
+    const userId = req.user!.id;
+    const projectId = Number(req.params.id);
+    const targetUserId = Number(req.params.targetUserId);
+    const schema = z.object({ transaction_limit: z.number().min(0) });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Invalid payload" });
+
+    const project = db.prepare("SELECT user_id FROM projects WHERE id = ?").get(projectId) as { user_id: number } | undefined;
+    if (!project || project.user_id !== userId) {
+        return res.status(403).json({ error: "Only the owner can update collaborator limits" });
+    }
+
+    db.prepare("UPDATE project_collaborators SET transaction_limit = ? WHERE project_id = ? AND user_id = ?")
+        .run(parsed.data.transaction_limit, projectId, targetUserId);
+
+    res.json({ message: "Limit updated" });
 });
 
 // Remove collaborator

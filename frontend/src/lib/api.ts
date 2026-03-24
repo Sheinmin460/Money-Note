@@ -101,6 +101,15 @@ export const api = {
   listTransfers(): Promise<TransferLog[]> {
     return request<TransferLog[]>("/transactions/transfers");
   },
+  listPendingApprovals(): Promise<import("./types").ApprovalRequest[]> {
+    return request<import("./types").ApprovalRequest[]>("/transactions/approvals/pending");
+  },
+  approveTransaction(id: number): Promise<{ message: string }> {
+    return request<{ message: string }>(`/transactions/${id}/approve`, { method: "PATCH" });
+  },
+  rejectTransaction(id: number): Promise<{ message: string }> {
+    return request<{ message: string }>(`/transactions/${id}/reject`, { method: "PATCH" });
+  },
 
   // ─── Wallets ─────────────────────────────────────────────────────────────
   listWallets(): Promise<Wallet[]> {
@@ -123,8 +132,11 @@ export const api = {
   listProjects(): Promise<import("./types").Project[]> {
     return request<import("./types").Project[]>("/projects");
   },
-  createProject(name: string): Promise<import("./types").Project> {
-    return request<import("./types").Project>("/projects", { method: "POST", body: JSON.stringify({ name }) });
+  createProject(name: string, budget_limit: number = 0): Promise<import("./types").Project> {
+    return request<import("./types").Project>("/projects", { method: "POST", body: JSON.stringify({ name, budget_limit }) });
+  },
+  updateProjectSettings(id: number, data: { name?: string; budget_limit?: number }): Promise<{ message: string }> {
+    return request<{ message: string }>(`/projects/${id}`, { method: "PATCH", body: JSON.stringify(data) });
   },
   deleteProject(id: number): Promise<void> {
     return request<void>(`/projects/${id}`, { method: "DELETE" });
@@ -132,8 +144,11 @@ export const api = {
   getProjectDetail(id: number): Promise<import("./types").ProjectDetail> {
     return request<import("./types").ProjectDetail>(`/projects/${id}`);
   },
-  addCollaborator(projectId: number, data: { email: string; password: string }): Promise<{ message: string }> {
+  addCollaborator(projectId: number, data: { email: string; password: string; transaction_limit?: number }): Promise<{ message: string }> {
     return request<{ message: string }>(`/projects/${projectId}/collaborators`, { method: "POST", body: JSON.stringify(data) });
+  },
+  updateCollaboratorLimit(projectId: number, userId: number, transaction_limit: number): Promise<{ message: string }> {
+    return request<{ message: string }>(`/projects/${projectId}/collaborators/${userId}`, { method: "PATCH", body: JSON.stringify({ transaction_limit }) });
   },
   removeCollaborator(projectId: number, userId: number): Promise<void> {
     return request<void>(`/projects/${projectId}/collaborators/${userId}`, { method: "DELETE" });

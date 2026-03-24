@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { api } from "../lib/api";
 
 export function Header({
     onAddTransaction,
@@ -9,7 +10,23 @@ export function Header({
     backTo?: string;
 }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [pendingCount, setPendingCount] = useState(0);
     const location = useLocation();
+
+    useEffect(() => {
+        const checkApprovals = async () => {
+            try {
+                const data = await api.listPendingApprovals();
+                setPendingCount(data.length);
+            } catch (err) {
+                // Ignore background errors
+            }
+        };
+        void checkApprovals();
+        // Check every minute
+        const interval = setInterval(checkApprovals, 60000);
+        return () => clearInterval(interval);
+    }, []);
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
@@ -58,7 +75,7 @@ export function Header({
                                 <Link
                                     key={item.path}
                                     to={item.path}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-black transition-all ${location.pathname === item.path
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-black transition-all relative ${location.pathname === item.path
                                         ? "bg-slate-900 text-white shadow-lg shadow-slate-200"
                                         : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
                                         }`}
@@ -67,6 +84,11 @@ export function Header({
                                         {item.icon}
                                     </svg>
                                     {item.label}
+                                    {item.label === "Project" && pendingCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white ring-2 ring-white animate-pulse">
+                                            {pendingCount}
+                                        </span>
+                                    )}
                                 </Link>
                             ))}
                         </nav>
@@ -138,6 +160,11 @@ export function Header({
                                     {item.icon}
                                 </svg>
                                 {item.label}
+                                {item.label === "Project" && pendingCount > 0 && (
+                                    <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white ring-2 ring-white">
+                                        {pendingCount}
+                                    </span>
+                                )}
                             </Link>
                         ))}
                     </nav>

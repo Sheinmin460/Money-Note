@@ -14,6 +14,7 @@ export type Transaction = {
   project_id?: number | null;
   transfer_id?: string | null;
   user_id: number;
+  status: "approved" | "pending";
   created_at?: string;
 };
 
@@ -34,18 +35,26 @@ export type Project = {
   id: number;
   name: string;
   user_id: number;
+  budget_limit: number;
   created_at: string;
   owner_username?: string;
   owner_email?: string;
   is_owner?: boolean;
 };
 
+export type ProjectCollaborator = { id: number; username: string; email: string; transaction_limit: number };
+
 export type ProjectDetail = Project & {
   income: number;
   expense: number;
   profit: number;
   transactions: (Transaction & { user_id: number })[];
-  collaborators: { id: number; username: string; email: string }[];
+  collaborators: ProjectCollaborator[];
+};
+
+export type ApprovalRequest = Transaction & {
+  creator_name: string;
+  project_name: string;
 };
 
 export type Wallet = {

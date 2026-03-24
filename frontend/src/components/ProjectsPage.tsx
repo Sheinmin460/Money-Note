@@ -4,20 +4,19 @@ import type { Project } from "../lib/types";
 import { Header } from "../components/Header";
 import { Footer } from "../components/Footer";
 import { Button } from "../components/Button";
-import { Card } from "../components/Card";
 import { Link } from "react-router-dom";
 import { ConfirmationModal } from "../components/ConfirmationModal";
 import { Skeleton } from "../components/Skeleton";
 import { useAuth } from "../context/AuthContext";
+import { ProjectModal } from "../components/ProjectModal";
 
 export default function ProjectsPage() {
     const { user } = useAuth();
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [newName, setNewName] = useState("");
-    const [busy, setBusy] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; project?: Project }>({ open: false });
+    const [modalOpen, setModalOpen] = useState(false);
+    const [editingProject, setEditingProject] = useState<Project | undefined>(undefined);
 
     const refresh = async () => {
         setLoading(true);
@@ -25,7 +24,7 @@ export default function ProjectsPage() {
             const data = await api.listProjects();
             setProjects(data);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load projects.");
+            console.error(err);
         } finally {
             setLoading(false);
         }
@@ -35,23 +34,18 @@ export default function ProjectsPage() {
         void refresh();
     }, []);
 
-    const handleCreate = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newName.trim() || busy) return;
+    const openCreate = () => {
+        setEditingProject(undefined);
+        setModalOpen(true);
+    };
 
-        setBusy(true);
-        setError(null);
-        try {
-            const created = await api.createProject(newName.trim());
-            setProjects((prev) => [created, ...prev]);
-            setNewName("");
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to create project.");
-        } finally {
-            setBusy(true);
-            // Small timeout to prevent double click
-            setTimeout(() => setBusy(false), 500);
-        }
+    const openEdit = (p: Project) => {
+        setEditingProject(p);
+        setModalOpen(true);
+    };
+
+    const handleSuccess = () => {
+        void refresh();
     };
 
     const handleDelete = async () => {
@@ -59,12 +53,11 @@ export default function ProjectsPage() {
         if (!p) return;
 
         setConfirmDelete({ open: false });
-        setError(null);
         try {
             await api.deleteProject(p.id);
             setProjects((prev) => prev.filter((item) => item.id !== p.id));
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Delete failed.");
+            console.error(err);
         }
     };
 
@@ -73,32 +66,21 @@ export default function ProjectsPage() {
             <Header />
 
             <main className="mx-auto max-w-4xl space-y-8 px-4 py-8">
-                <section className="space-y-4 text-center">
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Projects</h1>
-                    <p className="text-slate-500 font-medium">Manage your projects and track their performance.</p>
-                </section>
-
-                {error && (
-                    <div className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-800 ring-1 ring-rose-200 animate-shake">
-                        {error}
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Projects</h1>
+                        <p className="text-slate-500 font-medium">Manage your projects and track performance.</p>
                     </div>
-                )}
-
-                <Card className="p-6">
-                    <form onSubmit={handleCreate} className="flex gap-2">
-                        <input
-                            type="text"
-                            placeholder="Project name..."
-                            className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-slate-400 transition-all font-medium"
-                            value={newName}
-                            onChange={(e) => setNewName(e.target.value)}
-                            disabled={busy}
-                        />
-                        <Button type="submit" disabled={!newName.trim() || busy} className="bg-slate-900 px-6 rounded-xl font-bold transition-all shadow-lg active:scale-95">
-                            {busy ? "Creating..." : "Create Project"}
-                        </Button>
-                    </form>
-                </Card>
+                    <Button
+                        onClick={openCreate}
+                        className="rounded-2xl bg-slate-900 px-6 py-3 font-black text-white shadow-xl shadow-slate-200 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                        </svg>
+                        New Project
+                    </Button>
+                </div>
 
                 <section className="grid grid-cols-1 gap-4">
                     {loading && projects.length === 0 ? (
@@ -128,18 +110,34 @@ export default function ProjectsPage() {
                                         </div>
                                         <div className="flex items-center gap-3">
                                             {(p.user_id === user?.id) && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        setConfirmDelete({ open: true, project: p });
-                                                    }}
-                                                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
-                                                </button>
+                                                <>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            openEdit(p);
+                                                        }}
+                                                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                                        title="Edit Project"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                        </svg>
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            setConfirmDelete({ open: true, project: p });
+                                                        }}
+                                                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                                                        title="Delete Project"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                </>
                                             )}
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-300 group-hover:text-slate-900 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -164,6 +162,12 @@ export default function ProjectsPage() {
                 variant="danger"
                 onConfirm={handleDelete}
                 onCancel={() => setConfirmDelete({ open: false })}
+            />
+            <ProjectModal
+                open={modalOpen}
+                onClose={() => setModalOpen(false)}
+                project={editingProject}
+                onSuccess={handleSuccess}
             />
         </div>
     );
