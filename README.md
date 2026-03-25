@@ -7,15 +7,18 @@
 ## ✨ Features
 
 - **Profit Dashboard**: Instantly see your total income, expenses, profit, and current balance in a modern, card-based interface.
+- **Admin Insights**: Visual bar charts for comparing project-specific expense, income, and profit.
 - **Projects Management**: Group transactions into projects to track specific budgets or ventures with dedicated summaries.
-- **User Authentication**: Secure your data with personal accounts. Each user has their own private set of wallets, projects, and transactions.
-- **Project Collaboration**: Share projects with other users. Invite collaborators via email and manage their access dynamically.
+- **Project Collaboration**: Share projects with other users via email and managing access dynamically.
+- **Transaction Approval Workflow**: Approve or reject pending transactions within collaborative projects.
 - **Credit Wallets & Limits**: Create specialized "Credit" wallets that allow negative balances up to a custom-defined credit limit.
 - **Wallet Management**: Full CRUD support for wallets (Cash, Bank, Credit). Renaming a wallet automatically updates all its associated transactions.
 - **Categorization & Filters**: Mandatory categorization for clear reporting. Smart filters include "NULL" category handling and custom date ranges.
 - **Separate Transfer Logs**: Move funds between wallets without affecting your main income/expense charts.
 - **Skeleton Loading**: A premium UI experience with smooth loading states across all pages.
-- **Security & Integrity**: Transactional database updates (using SQLite BEGIN/COMMIT) ensure data consistency even during complex operations like wallet renaming.
+
+> [!TIP]
+> **For a detailed breakdown of all features, see our [Feature Guide](Feature.md).**
 
 ## 🛠️ Technology Stack
 
