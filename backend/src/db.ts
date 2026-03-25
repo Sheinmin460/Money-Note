@@ -16,6 +16,7 @@ if (fs.existsSync(dbPath)) {
 }
 */
 
+
 export const db = new Database(dbPath);
 db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
@@ -70,6 +71,15 @@ CREATE TABLE IF NOT EXISTS project_collaborators (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (project_id, user_id)
 );
+
+-- Optimization Indexes
+CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_project_id ON transactions(project_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
+CREATE INDEX IF NOT EXISTS idx_transactions_payment_method ON transactions(payment_method);
+CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
+CREATE INDEX IF NOT EXISTS idx_project_collaborators_user_id ON project_collaborators(user_id);
 `);
 
 // Schema updates for existing databases

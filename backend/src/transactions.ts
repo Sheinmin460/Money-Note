@@ -267,7 +267,7 @@ transactionsRouter.get("/balances", (req, res) => {
 
 transactionsRouter.get("/category-totals", (req, res) => {
   const userId = req.user!.id;
-  const { from, to } = req.query;
+  const { from, to, wallets } = req.query;
 
   let whereClause = '';
   const params: any[] = [userId];
@@ -279,6 +279,11 @@ transactionsRouter.get("/category-totals", (req, res) => {
   if (to && typeof to === 'string') {
     whereClause += ` AND date <= ?`;
     params.push(to);
+  }
+  if (wallets && typeof wallets === 'string') {
+    const walletList = wallets.split(',');
+    whereClause += ` AND payment_method IN (${walletList.map(() => '?').join(',')})`;
+    params.push(...walletList);
   }
 
   const income = db

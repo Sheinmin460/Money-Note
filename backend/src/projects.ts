@@ -18,6 +18,30 @@ const inviteCollaboratorSchema = z.object({
     transaction_limit: z.number().min(0).default(0)
 });
 
+projectsRouter.get("/comparison", (req, res) => {
+    const userId = req.user!.id;
+    const rows = db.prepare(`
+        SELECT 
+            p.id, 
+            p.name,
+            COALESCE(SUM(CASE WHEN t.type = 'income' AND t.status = 'approved' THEN t.amount ELSE 0 END), 0) as income,
+            COALESCE(SUM(CASE WHEN t.type = 'expense' AND t.status = 'approved' THEN t.amount ELSE 0 END), 0) as expense
+        FROM projects p
+        LEFT JOIN project_collaborators pc ON p.id = pc.project_id
+        LEFT JOIN transactions t ON p.id = t.project_id
+        WHERE p.user_id = ? OR pc.user_id = ?
+        GROUP BY p.id
+        ORDER BY p.name ASC
+    `).all(userId, userId) as { id: number, name: string, income: number, expense: number }[];
+
+    const result = rows.map(r => ({
+        ...r,
+        profit: r.income - r.expense
+    }));
+
+    res.json(result);
+});
+
 projectsRouter.get("/", (req, res) => {
     const userId = req.user!.id;
     const rows = db.prepare(`

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import DateRangeFilter from './DateRangeFilter';
 import PresetRangeFilter from './PresetRangeFilter';
 import CategoryPieChart from './CategoryPieChart';
+import ProjectBarChart from './ProjectBarChart';
 import { Header } from './Header';
 import { formatCurrency } from '../lib/format';
 import { CardSkeleton, Skeleton } from './Skeleton';
@@ -13,20 +14,28 @@ interface WalletBalance {
   balance: number;
 }
 
+interface ProjectComparison {
+  id: number;
+  name: string;
+  income: number;
+  expense: number;
+  profit: number;
+}
+
 const AdminDashboard: React.FC = () => {
   const [balances, setBalances] = useState<WalletBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [categoryTotals, setCategoryTotals] = useState<{ income: { name: string; value: number }[], expense: { name: string; value: number }[] }>({ income: [], expense: [] });
-  const [allCategories, setAllCategories] = useState<string[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [projectComparison, setProjectComparison] = useState<ProjectComparison[]>([]);
+  const [selectedWallets, setSelectedWallets] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<{ from?: string, to?: string }>({});
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Draft states for the filter dropdown
   const [draftDateRange, setDraftDateRange] = useState<{ from?: string, to?: string }>({});
-  const [draftSelectedCategories, setDraftSelectedCategories] = useState<string[]>([]);
+  const [draftSelectedWallets, setDraftSelectedWallets] = useState<string[]>([]);
 
   const fetchBalances = async () => {
     try {
@@ -41,42 +50,47 @@ const AdminDashboard: React.FC = () => {
 
   const fetchCategoryTotals = async () => {
     try {
-      const data = await api.getCategoryTotals(dateRange.from, dateRange.to, selectedCategories);
+      const data = await api.getCategoryTotals(dateRange.from, dateRange.to, selectedWallets);
       const income = data.income.map(item => ({ name: item.category, value: item.total }));
       const expense = data.expense.map(item => ({ name: item.category, value: item.total }));
 
       setCategoryTotals({ income, expense });
-
-      // Only populate allCategories once if empty
-      if (allCategories.length === 0 && selectedCategories.length === 0) {
-        const uniqueCats = Array.from(new Set([...income.map(i => i.name), ...expense.map(e => e.name)]));
-        setAllCategories(uniqueCats.filter(Boolean));
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load category totals.');
+    }
+  };
+
+  const fetchProjectComparison = async () => {
+    try {
+      const data = await api.getProjectComparison();
+      setProjectComparison(data);
+    } catch (err) {
+      console.error('Failed to fetch project comparison:', err);
     }
   };
 
 
   useEffect(() => {
     void fetchBalances();
+    void fetchProjectComparison();
   }, []);
 
   useEffect(() => {
     void fetchCategoryTotals();
-  }, [dateRange, selectedCategories]);
+  }, [dateRange, selectedWallets]);
 
   // Sync draft states when filter opens
   useEffect(() => {
     if (isFilterOpen) {
       setDraftDateRange(dateRange);
-      setDraftSelectedCategories(selectedCategories);
+      setDraftSelectedWallets(selectedWallets);
     }
-  }, [isFilterOpen, dateRange, selectedCategories]);
+  }, [isFilterOpen, dateRange, selectedWallets]);
 
   const handlePresetSelect = (days: number | 'all') => {
     if (days === 'all') {
       setDraftDateRange({});
+      setDraftSelectedWallets([]);
       return;
     }
 
@@ -87,9 +101,9 @@ const AdminDashboard: React.FC = () => {
     setDraftDateRange({ from: from.toISOString().split('T')[0], to: to.toISOString().split('T')[0] });
   };
 
-  const toggleCategory = (cat: string) => {
-    setDraftSelectedCategories(prev =>
-      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+  const toggleWallet = (wallet: string) => {
+    setDraftSelectedWallets(prev =>
+      prev.includes(wallet) ? prev.filter(w => w !== wallet) : [...prev, wallet]
     );
   };
 
@@ -117,7 +131,7 @@ const AdminDashboard: React.FC = () => {
                   <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
                 </svg>
                 Filters
-                {(dateRange.from || dateRange.to || selectedCategories.length > 0) && (
+                {(dateRange.from || dateRange.to || selectedWallets.length > 0) && (
                   <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
                 )}
               </button>
@@ -129,9 +143,9 @@ const AdminDashboard: React.FC = () => {
                     <button
                       onClick={() => {
                         setDateRange({});
-                        setSelectedCategories([]);
+                        setSelectedWallets([]);
                         setDraftDateRange({});
-                        setDraftSelectedCategories([]);
+                        setDraftSelectedWallets([]);
                       }}
                       className="text-xs text-emerald-600 font-bold uppercase tracking-wider hover:text-emerald-700"
                     >
@@ -153,23 +167,23 @@ const AdminDashboard: React.FC = () => {
                       </div>
                     </section>
 
-                    {allCategories.length > 0 && (
+                    {balances.length > 0 && (
                       <section className="pt-4 border-t border-slate-100">
                         <div className="flex items-center justify-between mb-3">
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Categories</p>
-                          <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-bold">{draftSelectedCategories.length} Selected</span>
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Wallets</p>
+                          <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-bold">{draftSelectedWallets.length} Selected</span>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {allCategories.map(cat => (
+                          {balances.map(b => (
                             <button
-                              key={cat}
-                              onClick={() => toggleCategory(cat)}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${draftSelectedCategories.includes(cat)
+                              key={b.payment_method}
+                              onClick={() => toggleWallet(b.payment_method)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${draftSelectedWallets.includes(b.payment_method)
                                 ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm'
                                 : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                                 }`}
                             >
-                              {cat}
+                              {b.payment_method}
                             </button>
                           ))}
                         </div>
@@ -181,7 +195,7 @@ const AdminDashboard: React.FC = () => {
                     <button
                       onClick={() => {
                         setDateRange(draftDateRange);
-                        setSelectedCategories(draftSelectedCategories);
+                        setSelectedWallets(draftSelectedWallets);
                         setIsFilterOpen(false);
                       }}
                       className="w-full py-4 bg-emerald-600 text-white text-base font-black rounded-2xl shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-95 transition-all flex items-center justify-center gap-2"
@@ -320,6 +334,42 @@ const AdminDashboard: React.FC = () => {
             </div>
           </section>
         </div>
+
+        {/* Project Comparison Section */}
+        <section className="pb-20">
+          <div className="mb-6">
+            <h2 className="text-xl font-black text-slate-900 flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-100">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                </svg>
+              </div>
+              Project Performance Comparison
+            </h2>
+            <p className="text-slate-500 text-sm mt-1 font-medium italic">Compare income, expenses, and profit across all projects.</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-12">
+            <ProjectBarChart
+              data={projectComparison}
+              dataKey="income"
+              title="Income by Project"
+              color="#10b981" // emerald-500
+            />
+            <ProjectBarChart
+              data={projectComparison}
+              dataKey="expense"
+              title="Expense by Project"
+              color="#f43f5e" // rose-500
+            />
+            <ProjectBarChart
+              data={projectComparison}
+              dataKey="profit"
+              title="Profit by Project"
+              color="#6366f1" // indigo-500
+            />
+          </div>
+        </section>
       </div>
     </div>
   );

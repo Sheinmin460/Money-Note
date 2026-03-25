@@ -21,6 +21,10 @@ export default defineConfig({
       "/wallets": {
         target: "http://localhost:5176",
         changeOrigin: true
+      },
+      "/auth": {
+        target: "http://localhost:5176",
+        changeOrigin: true
       }
     }
   }

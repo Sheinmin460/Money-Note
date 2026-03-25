@@ -91,11 +91,11 @@ export const api = {
   getBalances(): Promise<WalletBalance[]> {
     return request<WalletBalance[]>("/transactions/balances");
   },
-  getCategoryTotals(from?: string, to?: string, categories?: string[]): Promise<{ income: { category: string; total: number }[]; expense: { category: string; total: number }[] }> {
+  getCategoryTotals(from?: string, to?: string, wallets?: string[]): Promise<{ income: { category: string; total: number }[]; expense: { category: string; total: number }[] }> {
     const params = new URLSearchParams();
     if (from) params.set("from", from);
     if (to) params.set("to", to);
-    if (categories && categories.length > 0) params.set("categories", categories.join(","));
+    if (wallets && wallets.length > 0) params.set("wallets", wallets.join(","));
     return request<{ income: { category: string; total: number }[]; expense: { category: string; total: number }[] }>(`/transactions/category-totals?${params.toString()}`);
   },
   listTransfers(): Promise<TransferLog[]> {
@@ -119,10 +119,10 @@ export const api = {
     return request<Wallet>("/wallets", { method: "POST", body: JSON.stringify({ name, is_credit, credit_limit }) });
   },
   updateWallet(oldName: string, data: { name?: string; is_credit?: boolean; credit_limit?: number }): Promise<Wallet> {
-    return request<Wallet>(`/wallets/${oldName}`, { method: "PUT", body: JSON.stringify(data) });
+    return request<Wallet>(`/wallets/${encodeURIComponent(oldName)}`, { method: "PUT", body: JSON.stringify(data) });
   },
   deleteWallet(name: string): Promise<void> {
-    return request<void>(`/wallets/${name}`, { method: "DELETE" });
+    return request<void>(`/wallets/${encodeURIComponent(name)}`, { method: "DELETE" });
   },
   transferMoney(payload: { from: string; to: string; amount: number; date: string; note?: string }): Promise<{ message: string }> {
     return request<{ message: string }>("/wallets/transfer", { method: "POST", body: JSON.stringify(payload) });
@@ -143,6 +143,9 @@ export const api = {
   },
   getProjectDetail(id: number): Promise<import("./types").ProjectDetail> {
     return request<import("./types").ProjectDetail>(`/projects/${id}`);
+  },
+  getProjectComparison(): Promise<{ id: number; name: string; income: number; expense: number; profit: number }[]> {
+    return request<{ id: number; name: string; income: number; expense: number; profit: number }[]>("/projects/comparison");
   },
   addCollaborator(projectId: number, data: { email: string; password: string; transaction_limit?: number }): Promise<{ message: string }> {
     return request<{ message: string }>(`/projects/${projectId}/collaborators`, { method: "POST", body: JSON.stringify(data) });
