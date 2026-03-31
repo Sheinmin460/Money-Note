@@ -1,4 +1,4 @@
-import { db } from "./src/db.js";
+import { db } from "./src/db/index.js";
 
 async function test() {
     console.log("Starting verification test...");

@@ -1,10 +1,11 @@
+import { memo } from "react";
 import type { Transaction } from "../lib/types";
 import { formatCurrency, formatDate } from "../lib/format";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { useAuth } from "../context/AuthContext";
 
-export function TransactionTable({
+export const TransactionTable = memo(function TransactionTable({
   items,
   onEdit,
   onDelete,
@@ -105,5 +106,4 @@ export function TransactionTable({
       </div>
     </Card>
   );
-}
-
+});

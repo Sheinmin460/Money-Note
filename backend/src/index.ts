@@ -1,10 +1,9 @@
 import express from "express";
 import cors from "cors";
-import { transactionsRouter } from "./transactions.js";
-import { projectsRouter } from "./projects.js";
-import { walletsRouter } from "./wallets.js";
-import { authRouter } from "./auth.js";
-import { requireAuth } from "./middleware.js";
+import { transactionsRouter } from "./routes/transactions.js";
+import { projectsRouter } from "./routes/projects.js";
+import { walletsRouter } from "./routes/wallets.js";
+import { authRouter } from "./routes/auth.js";
 
 const app = express();
 
@@ -19,9 +18,8 @@ app.use(express.json({ limit: "256kb" }));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
-// Public auth routes (no token required)
+// Routes
 app.use("/auth", authRouter);
-
 app.use("/transactions", transactionsRouter);
 app.use("/projects", projectsRouter);
 app.use("/wallets", walletsRouter);

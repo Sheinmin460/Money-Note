@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { api } from "../lib/api";
-import type { Project, Transaction, TransactionCreate } from "../lib/types";
+import type { Project, Transaction, TransactionCreate, ApprovalRequest } from "../lib/types";
 import { formatCurrency } from "../lib/format";
 import { Link } from "react-router-dom";
 import { Modal } from "../components/Modal";
@@ -24,7 +24,7 @@ export default function HomePage() {
 
     const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; tx?: Transaction }>({ open: false });
     const [invitations, setInvitations] = useState<Project[]>([]);
-    const [pendingApprovals, setPendingApprovals] = useState<import("../lib/types").ApprovalRequest[]>([]);
+    const [pendingApprovals, setPendingApprovals] = useState<ApprovalRequest[]>([]);
 
     const totals = useMemo(() => {
         const income = items
@@ -41,7 +41,7 @@ export default function HomePage() {
         return { income, expense, profit, balance: overallBalance };
     }, [items, balances]);
 
-    const refresh = async () => {
+    const refresh = useCallback(async () => {
         setError(null);
         setLoading(true);
         try {
@@ -63,18 +63,17 @@ export default function HomePage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-
-    const ackInvite = (id: number) => {
+    const ackInvite = useCallback((id: number) => {
         const acknowledged = JSON.parse(localStorage.getItem('mn_ack_invites') || '[]');
         localStorage.setItem('mn_ack_invites', JSON.stringify([...acknowledged, id]));
         setInvitations(prev => prev.filter(p => p.id !== id));
-    };
+    }, []);
 
     useEffect(() => {
         void refresh();
-    }, []);
+    }, [refresh]);
 
     useEffect(() => {
         if (error) {
@@ -83,19 +82,19 @@ export default function HomePage() {
         }
     }, [error]);
 
-    const openCreate = () => {
+    const openCreate = useCallback(() => {
         setEditing(undefined);
         setModalOpen(true);
-    };
+    }, []);
 
-    const openEdit = (tx: Transaction) => {
+    const openEdit = useCallback((tx: Transaction) => {
         setEditing(tx);
         setModalOpen(true);
-    };
+    }, []);
 
-    const closeModal = () => setModalOpen(false);
+    const closeModal = useCallback(() => setModalOpen(false), []);
 
-    const submit = async (payload: TransactionCreate) => {
+    const submit = useCallback(async (payload: TransactionCreate) => {
         setError(null);
         try {
             if (editing) {
@@ -111,15 +110,12 @@ export default function HomePage() {
             }
             setModalOpen(false);
             void refresh();
-        } catch (err) {
-            // Submission errors are handled by TransactionForm, so we don't setError(err.message) here
-            throw err;
         } finally {
             setBusyId(null);
         }
-    };
+    }, [editing, refresh]);
 
-    const handleDeleteConfirm = async () => {
+    const handleDeleteConfirm = useCallback(async () => {
         const tx = confirmDelete.tx;
         if (!tx) return;
 
@@ -135,7 +131,11 @@ export default function HomePage() {
         } finally {
             setBusyId(null);
         }
-    };
+    }, [confirmDelete.tx, refresh]);
+
+    const initiateDelete = useCallback((tx: Transaction) => {
+        setConfirmDelete({ open: true, tx });
+    }, []);
 
     return (
         <div className="min-h-screen bg-slate-50/50">
@@ -246,7 +246,7 @@ export default function HomePage() {
                             <TransactionTable
                                 items={items}
                                 onEdit={openEdit}
-                                onDelete={(tx) => setConfirmDelete({ open: true, tx })}
+                                onDelete={initiateDelete}
                                 busyId={busyId}
                             />
                         </section>

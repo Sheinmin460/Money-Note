@@ -1,6 +1,7 @@
+import { memo } from "react";
 import { Card } from "./Card";
 
-export function SummaryCard({
+export const SummaryCard = memo(function SummaryCard({
   label,
   value,
   tone
@@ -26,5 +27,4 @@ export function SummaryCard({
       </div>
     </Card>
   );
-}
-
+});

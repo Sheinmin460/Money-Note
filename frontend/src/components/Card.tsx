@@ -1,6 +1,6 @@
-import type { PropsWithChildren } from "react";
+import { memo, type PropsWithChildren } from "react";
 
-export function Card({
+export const Card = memo(function Card({
   children,
   className = ""
 }: PropsWithChildren<{ className?: string }>) {
@@ -9,5 +9,4 @@ export function Card({
       {children}
     </div>
   );
-}
-
+});

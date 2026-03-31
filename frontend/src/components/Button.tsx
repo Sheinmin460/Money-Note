@@ -1,8 +1,8 @@
-import type { ButtonHTMLAttributes, PropsWithChildren } from "react";
+import { memo, type ButtonHTMLAttributes, type PropsWithChildren } from "react";
 
 type Variant = "primary" | "ghost" | "danger" | "outline";
 
-export function Button(
+export const Button = memo(function Button(
   props: PropsWithChildren<
     ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }
   >
@@ -22,5 +22,4 @@ export function Button(
   };
 
   return <button className={`${base} ${styles[variant]} ${className}`} {...rest} />;
-}
-
+});

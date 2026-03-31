@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { db } from "./db.js";
-import { JWT_SECRET } from "./auth.js";
+import { db } from "./db/index.js";
+import { JWT_SECRET } from "./routes/auth.js";
 
 export interface AuthUser {
     id: number;

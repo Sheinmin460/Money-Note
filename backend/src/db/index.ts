@@ -8,15 +8,6 @@ const dbPath = path.join(dataDir, "app.db");
 
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
-// Delete old DB to start fresh with new schema (user_id support)
-// NOTE: Comment this out after first run if you want to preserve data
-/*
-if (fs.existsSync(dbPath)) {
-  fs.unlinkSync(dbPath);
-}
-*/
-
-
 export const db = new Database(dbPath);
 db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
@@ -129,24 +120,3 @@ export type WalletRow = {
   credit_limit: number;
   created_at: string;
 };
-
-export function getWalletBalance(userId: number, name: string): number {
-  const row = db.prepare(`
-    SELECT 
-      SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) - 
-      SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as balance
-    FROM transactions 
-    WHERE user_id = ? AND payment_method = ?
-  `).get(userId, name) as { balance: number | null };
-  return row.balance ?? 0;
-}
-
-export function isCreditWallet(userId: number, name: string): boolean {
-  const row = db.prepare("SELECT is_credit FROM wallets WHERE user_id = ? AND name = ?").get(userId, name) as { is_credit: number } | undefined;
-  return row?.is_credit === 1;
-}
-
-export function getWalletCreditLimit(userId: number, name: string): number {
-  const row = db.prepare("SELECT credit_limit FROM wallets WHERE user_id = ? AND name = ?").get(userId, name) as { credit_limit: number } | undefined;
-  return row?.credit_limit || 0;
-}
